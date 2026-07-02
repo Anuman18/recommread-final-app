@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/services/api_client.dart';
@@ -202,7 +204,7 @@ class AiCoachNotifier extends StateNotifier<AiCoachState> {
     final updatedSessions = state.sessions.map((session) {
       if (session.id == state.activeSessionId) {
         String title = session.title;
-        if (title == 'New Coaching Chat') {
+        if (title == 'New Coaching Chat' || title == 'AI Coach Session') {
           title = text.length > 28 ? '${text.substring(0, 25)}...' : text;
         }
         return session.copyWith(
@@ -216,36 +218,80 @@ class AiCoachNotifier extends StateNotifier<AiCoachState> {
 
     state = state.copyWith(sessions: updatedSessions, isTyping: true, clearError: true);
 
+    final aiMessageId = 'm_${DateTime.now().millisecondsSinceEpoch}_ai';
+    final aiMessage = ChatMessage(
+      id: aiMessageId,
+      text: '',
+      isUser: false,
+      timestamp: DateTime.now(),
+    );
+
+    final sessionsWithEmptyAi = state.sessions.map((session) {
+      if (session.id == state.activeSessionId) {
+        return session.copyWith(
+          messages: [...session.messages, aiMessage],
+          updatedAt: DateTime.now(),
+        );
+      }
+      return session;
+    }).toList();
+
+    state = state.copyWith(sessions: sessionsWithEmptyAi);
+
     try {
-      final responseMap = await apiClient.post(
-        ApiConstants.tutorChatContinue,
-        body: {
-          'context_type': 'coach',
-          'message': text,
-        },
-      );
-      final responseText = responseMap['reply']?.toString() ?? 'I could not process that request.';
+      final client = http.Client();
+      final request = http.Request('POST', Uri.parse('${ApiClient.baseUrl}/api/v1/tutor/chat/continue/stream'));
+      
+      final headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      };
+      if (apiClient.token != null) {
+        headers['Authorization'] = 'Bearer ${apiClient.token}';
+      }
+      request.headers.addAll(headers);
+      request.body = json.encode({
+        'context_type': 'coach',
+        'message': text,
+      });
 
-      final aiMessage = ChatMessage(
-        id: 'm_${DateTime.now().millisecondsSinceEpoch}_ai',
-        text: responseText,
-        isUser: false,
-        timestamp: DateTime.now(),
-      );
+      final response = await client.send(request);
+      
+      if (response.statusCode != 200) {
+        throw ApiException('Failed to establish stream connection.', statusCode: response.statusCode);
+      }
 
-      final finalSessions = state.sessions.map((session) {
-        if (session.id == state.activeSessionId) {
-          return session.copyWith(
-            messages: [...session.messages, aiMessage],
-            updatedAt: DateTime.now(),
-          );
-        }
-        return session;
-      }).toList();
+      final accumulatedText = StringBuffer();
+      
+      await for (final chunk in response.stream.transform(utf8.decoder)) {
+        accumulatedText.write(chunk);
+        
+        final streamingSessions = state.sessions.map((session) {
+          if (session.id == state.activeSessionId) {
+            final updatedMsgs = session.messages.map((m) {
+              if (m.id == aiMessageId) {
+                return ChatMessage(
+                  id: aiMessageId,
+                  text: accumulatedText.toString(),
+                  isUser: false,
+                  timestamp: m.timestamp,
+                );
+              }
+              return m;
+            }).toList();
+            return session.copyWith(messages: updatedMsgs);
+          }
+          return session;
+        }).toList();
 
-      state = state.copyWith(sessions: finalSessions, isTyping: false);
+        state = state.copyWith(sessions: streamingSessions);
+      }
+      
+      state = state.copyWith(isTyping: false);
     } on ApiException catch (e) {
       state = state.copyWith(isTyping: false, errorMessage: e.message);
+    } catch (_) {
+      state = state.copyWith(isTyping: false, errorMessage: 'Failed to establish server connection.');
     }
   }
 

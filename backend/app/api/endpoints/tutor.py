@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Body
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import Dict, Any, Optional
 
@@ -29,6 +30,23 @@ def continue_chat(
     if not message.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty")
     return ai_tutor_service.continue_chat(db, current_user.id, context_type, context_id, message)
+
+@router.post("/chat/continue/stream")
+def continue_chat_stream(
+    context_type: str = Body(..., embed=True),
+    context_id: Optional[str] = Body(None, embed=True),
+    message: str = Body(..., embed=True),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    if not message.strip():
+        raise HTTPException(status_code=400, detail="Message cannot be empty")
+        
+    def stream_generator():
+        for chunk in ai_tutor_service.continue_chat_stream(db, current_user.id, context_type, context_id, message):
+            yield chunk
+            
+    return StreamingResponse(stream_generator(), media_type="text/plain")
 
 @router.post("/explain", response_model=Dict[str, Any])
 def explain_concept(
