@@ -31,6 +31,11 @@ class ResourceResponse(BaseModel):
     thumbnail_url: Optional[str] = None
     is_bookmarked: bool = False
     is_completed: bool = False
+    current_chapter_index: int = 0
+    active_reading_seconds: int = 0
+    bookmarks: Optional[List[int]] = None
+    highlights: Optional[List[Dict[str, Any]]] = None
+    notes: Optional[List[Dict[str, Any]]] = None
 
     class Config:
         from_attributes = True

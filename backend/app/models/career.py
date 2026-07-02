@@ -82,6 +82,11 @@ class UserResourceProgress(Base):
     is_bookmarked = Column(Boolean, default=False)
     is_completed = Column(Boolean, default=False)
     progress_percentage = Column(Float, default=0.0)
+    current_chapter_index = Column(Integer, default=0)
+    active_reading_seconds = Column(Integer, default=0)
+    bookmarks = Column(JSON, nullable=True) # list of bookmarked chapters
+    highlights = Column(JSON, nullable=True) # list of dicts: [{"chapterIndex": 0, "text": "...", "colorHex": 123}]
+    notes = Column(JSON, nullable=True) # list of dicts: [{"chapterIndex": 0, "selectedText": "...", "noteText": "...", "createdAt": "..."}]
 
 
 class UserProjectProgress(Base):

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 
 from ...core.database import get_db
@@ -23,7 +24,12 @@ def make_response(r: Resource, progress: Optional[UserResourceProgress]) -> Reso
         skills=r.skills,
         thumbnail_url=r.thumbnail_url,
         is_bookmarked=progress.is_bookmarked if progress else False,
-        is_completed=progress.is_completed if progress else False
+        is_completed=progress.is_completed if progress else False,
+        current_chapter_index=progress.current_chapter_index if progress else 0,
+        active_reading_seconds=progress.active_reading_seconds if progress else 0,
+        bookmarks=progress.bookmarks if progress else [],
+        highlights=progress.highlights if progress else [],
+        notes=progress.notes if progress else []
     )
 
 @router.get("", response_model=List[ResourceResponse])
@@ -142,3 +148,49 @@ def get_book_by_id(
         UserResourceProgress.resource_id == r.id
     ).first()
     return make_response(r, progress)
+
+class BookSyncSchema(BaseModel):
+    current_chapter_index: int
+    active_reading_seconds: int
+    bookmarks: List[int]
+    highlights: List[Dict[str, Any]]
+    notes: List[Dict[str, Any]]
+
+@router.post("/{id}/sync", response_model=ResourceResponse)
+def sync_book_progress(
+    id: int,
+    sync_data: BookSyncSchema,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    resource = db.query(Resource).filter(Resource.id == id).first()
+    if not resource:
+        raise HTTPException(status_code=404, detail="Book not found")
+        
+    progress = db.query(UserResourceProgress).filter(
+        UserResourceProgress.user_id == current_user.id,
+        UserResourceProgress.resource_id == id
+    ).first()
+    
+    if not progress:
+        progress = UserResourceProgress(
+            user_id=current_user.id,
+            resource_id=id,
+            current_chapter_index=sync_data.current_chapter_index,
+            active_reading_seconds=sync_data.active_reading_seconds,
+            bookmarks=sync_data.bookmarks,
+            highlights=sync_data.highlights,
+            notes=sync_data.notes
+        )
+        db.add(progress)
+    else:
+        progress.current_chapter_index = sync_data.current_chapter_index
+        progress.active_reading_seconds = sync_data.active_reading_seconds
+        progress.bookmarks = sync_data.bookmarks
+        progress.highlights = sync_data.highlights
+        progress.notes = sync_data.notes
+        
+    db.commit()
+    db.refresh(progress)
+    
+    return make_response(resource, progress)

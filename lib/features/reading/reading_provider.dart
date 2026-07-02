@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/services/api_client.dart';
 import '../../models/book_model.dart';
 import '../library/library_provider.dart';
 
@@ -166,18 +167,85 @@ class ReadingSessionNotifier extends StateNotifier<ReadingSessionState> {
 
   // Restore reading progress from API
   Future<void> loadProgress() async {
-    final prefs = await SharedPreferences.getInstance();
-    final chapterIndex = prefs.getInt('reading_chapter_${state.book.id}') ?? 0;
-    final seconds = prefs.getInt('reading_seconds_${state.book.id}') ?? 0;
-    state = state.copyWith(
-      currentChapterIndex: chapterIndex,
-      activeReadingSeconds: seconds,
-      isProgressLoading: false,
-    );
+    try {
+      final res = await apiClient.get('/api/v1/books/${state.book.id}');
+      final map = Map<String, dynamic>.from(res as Map);
+      
+      final chapterIdx = (map['current_chapter_index'] as num?)?.toInt() ?? 0;
+      final activeSecs = (map['active_reading_seconds'] as num?)?.toInt() ?? 0;
+      
+      final List<dynamic> bookmarksRaw = map['bookmarks'] ?? [];
+      final bms = bookmarksRaw.map((b) => (b as num).toInt()).toList();
+
+      final List<dynamic> highlightsRaw = map['highlights'] ?? [];
+      final highlights = highlightsRaw.map((h) {
+        final m = Map<String, dynamic>.from(h as Map);
+        return Highlight(
+          chapterIndex: (m['chapterIndex'] as num).toInt(),
+          text: m['text']?.toString() ?? '',
+          colorHex: (m['colorHex'] as num).toInt(),
+        );
+      }).toList();
+
+      final List<dynamic> notesRaw = map['notes'] ?? [];
+      final notes = notesRaw.map((n) {
+        final m = Map<String, dynamic>.from(n as Map);
+        return ReadingNote(
+          chapterIndex: (m['chapterIndex'] as num).toInt(),
+          selectedText: m['selectedText']?.toString() ?? '',
+          noteText: m['noteText']?.toString() ?? '',
+          createdAt: DateTime.parse(m['createdAt']?.toString() ?? DateTime.now().toIso8601String()),
+        );
+      }).toList();
+
+      state = state.copyWith(
+        currentChapterIndex: chapterIdx,
+        activeReadingSeconds: activeSecs,
+        bookmarkedChapters: bms.toSet(),
+        highlights: highlights,
+        notes: notes,
+        isProgressLoading: false,
+      );
+    } catch (_) {
+      final prefs = await SharedPreferences.getInstance();
+      final chapterIndex = prefs.getInt('reading_chapter_${state.book.id}') ?? 0;
+      final seconds = prefs.getInt('reading_seconds_${state.book.id}') ?? 0;
+      state = state.copyWith(
+        currentChapterIndex: chapterIndex,
+        activeReadingSeconds: seconds,
+        isProgressLoading: false,
+      );
+    }
+  }
+
+  Future<void> _syncToBackend() async {
+    try {
+      final body = {
+        'current_chapter_index': state.currentChapterIndex,
+        'active_reading_seconds': state.activeReadingSeconds,
+        'bookmarks': state.bookmarkedChapters.toList(),
+        'highlights': state.highlights.map((h) => {
+          'chapterIndex': h.chapterIndex,
+          'text': h.text,
+          'colorHex': h.colorHex,
+        }).toList(),
+        'notes': state.notes.map((n) => {
+          'chapterIndex': n.chapterIndex,
+          'selectedText': n.selectedText,
+          'noteText': n.noteText,
+          'createdAt': n.createdAt.toIso8601String(),
+        }).toList(),
+      };
+      await apiClient.post('/api/v1/books/${state.book.id}/sync', body: body);
+    } catch (_) {}
   }
 
   void incrementTimer() {
     state = state.copyWith(activeReadingSeconds: state.activeReadingSeconds + 1);
+    // Sync active reading duration periodically (e.g. every 30 seconds)
+    if (state.activeReadingSeconds % 30 == 0) {
+      _syncToBackend();
+    }
   }
 
   // Save current chapter and update total pages progress
@@ -194,6 +262,8 @@ class ReadingSessionNotifier extends StateNotifier<ReadingSessionState> {
       final pagesCompleted =
           (state.book.totalPages * fraction).round().clamp(0, state.book.totalPages);
       await ref.read(libraryProvider.notifier).updateProgress(bookId, pagesCompleted);
+      
+      _syncToBackend();
     }
   }
 
@@ -205,6 +275,7 @@ class ReadingSessionNotifier extends StateNotifier<ReadingSessionState> {
       updatedBookmarks.add(state.currentChapterIndex);
     }
     state = state.copyWith(bookmarkedChapters: updatedBookmarks);
+    _syncToBackend();
   }
 
   void addHighlight(String text, int colorHex) {
@@ -214,6 +285,7 @@ class ReadingSessionNotifier extends StateNotifier<ReadingSessionState> {
       colorHex: colorHex,
     );
     state = state.copyWith(highlights: [...state.highlights, highlight]);
+    _syncToBackend();
   }
 
   void addNote(String selectedText, String noteText) {
@@ -224,6 +296,7 @@ class ReadingSessionNotifier extends StateNotifier<ReadingSessionState> {
       createdAt: DateTime.now(),
     );
     state = state.copyWith(notes: [...state.notes, note]);
+    _syncToBackend();
   }
 
   void updateSettings({

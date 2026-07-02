@@ -10,6 +10,26 @@ from ..deps import get_current_user
 
 router = APIRouter()
 
+def make_response(r: Resource, progress: Optional[UserResourceProgress]) -> ResourceResponse:
+    return ResourceResponse(
+        id=r.id,
+        career_slug=r.career_slug,
+        title=r.title,
+        category=r.category,
+        url=r.url,
+        description=r.description,
+        why_recommended=r.why_recommended,
+        skills=r.skills,
+        thumbnail_url=r.thumbnail_url,
+        is_bookmarked=progress.is_bookmarked if progress else False,
+        is_completed=progress.is_completed if progress else False,
+        current_chapter_index=progress.current_chapter_index if progress else 0,
+        active_reading_seconds=progress.active_reading_seconds if progress else 0,
+        bookmarks=progress.bookmarks if progress else [],
+        highlights=progress.highlights if progress else [],
+        notes=progress.notes if progress else []
+    )
+
 @router.get("", response_model=List[ResourceResponse])
 def get_resources(
     career: Optional[str] = None,
@@ -40,7 +60,12 @@ def get_resources(
             skills=r.skills,
             thumbnail_url=r.thumbnail_url,
             is_bookmarked=progress.is_bookmarked if progress else False,
-            is_completed=progress.is_completed if progress else False
+            is_completed=progress.is_completed if progress else False,
+            current_chapter_index=progress.current_chapter_index if progress else 0,
+            active_reading_seconds=progress.active_reading_seconds if progress else 0,
+            bookmarks=progress.bookmarks if progress else [],
+            highlights=progress.highlights if progress else [],
+            notes=progress.notes if progress else []
         ))
     return response
 
@@ -68,19 +93,7 @@ def bookmark_resource(
     db.commit()
     db.refresh(progress)
 
-    return ResourceResponse(
-        id=resource.id,
-        career_slug=resource.career_slug,
-        title=resource.title,
-        category=resource.category,
-        url=resource.url,
-        description=resource.description,
-        why_recommended=resource.why_recommended,
-        skills=resource.skills,
-        thumbnail_url=resource.thumbnail_url,
-        is_bookmarked=progress.is_bookmarked,
-        is_completed=progress.is_completed
-    )
+    return make_response(resource, progress)
 
 @router.post("/{id}/complete", response_model=ResourceResponse)
 def complete_resource(
@@ -114,16 +127,4 @@ def complete_resource(
             db.add(profile)
             db.commit()
 
-    return ResourceResponse(
-        id=resource.id,
-        career_slug=resource.career_slug,
-        title=resource.title,
-        category=resource.category,
-        url=resource.url,
-        description=resource.description,
-        why_recommended=resource.why_recommended,
-        skills=resource.skills,
-        thumbnail_url=resource.thumbnail_url,
-        is_bookmarked=progress.is_bookmarked,
-        is_completed=progress.is_completed
-    )
+    return make_response(resource, progress)

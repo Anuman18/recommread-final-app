@@ -18,9 +18,14 @@ async def lifespan(app: FastAPI):
         try:
             from sqlalchemy import text
             connection.execute(text("ALTER TABLE profiles ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT FALSE;"))
-            print("Successfully verified onboarding_completed column in profiles table.")
+            connection.execute(text("ALTER TABLE user_resource_progress ADD COLUMN IF NOT EXISTS current_chapter_index INTEGER DEFAULT 0;"))
+            connection.execute(text("ALTER TABLE user_resource_progress ADD COLUMN IF NOT EXISTS active_reading_seconds INTEGER DEFAULT 0;"))
+            connection.execute(text("ALTER TABLE user_resource_progress ADD COLUMN IF NOT EXISTS bookmarks JSONB;"))
+            connection.execute(text("ALTER TABLE user_resource_progress ADD COLUMN IF NOT EXISTS highlights JSONB;"))
+            connection.execute(text("ALTER TABLE user_resource_progress ADD COLUMN IF NOT EXISTS notes JSONB;"))
+            print("Successfully verified onboarding_completed and reading engine columns.")
         except Exception as e:
-            print(f"Error checking/adding onboarding_completed column: {e}")
+            print(f"Error checking/adding db columns: {e}")
     
     # Auto-seed mock data if empty
     db = SessionLocal()
