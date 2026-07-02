@@ -1,6 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any
+from datetime import datetime
+import json
+from ...models.feedback import AnalyticsEvent
 
 from ...core.database import get_db
 from ...api.deps import get_current_user
@@ -74,3 +78,58 @@ def get_suggested_coding_questions(
     db: Session = Depends(get_db)
 ):
     return RecommendationService.get_suggested_coding_questions(db, current_user.id)
+
+class TrackRecommendationSchema(BaseModel):
+    event_type: str # "view", "click", "complete"
+    item_type: str  # "book", "resource", "project", "coding", "interview"
+    item_id: str
+
+@router.post("/track")
+def track_recommendation(
+    data: TrackRecommendationSchema,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    event = AnalyticsEvent(
+        user_id=current_user.id,
+        event_name=f"recommendation_{data.event_type}",
+        properties=json.dumps({
+            "item_type": data.item_type,
+            "item_id": data.item_id
+        }),
+        timestamp=datetime.utcnow()
+    )
+    db.add(event)
+    db.commit()
+    return {"status": "tracked"}
+
+@router.get("/stats")
+def get_recommendation_stats(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    views = db.query(AnalyticsEvent).filter(
+        AnalyticsEvent.user_id == current_user.id,
+        AnalyticsEvent.event_name == "recommendation_view"
+    ).count()
+    
+    clicks = db.query(AnalyticsEvent).filter(
+        AnalyticsEvent.user_id == current_user.id,
+        AnalyticsEvent.event_name == "recommendation_click"
+    ).count()
+    
+    completions = db.query(AnalyticsEvent).filter(
+        AnalyticsEvent.user_id == current_user.id,
+        AnalyticsEvent.event_name == "recommendation_complete"
+    ).count()
+    
+    ctr = (clicks / views) if views > 0 else 0.0
+    completion_rate = (completions / clicks) if clicks > 0 else 0.0
+    
+    return {
+        "views": views,
+        "clicks": clicks,
+        "completions": completions,
+        "ctr": ctr,
+        "completion_rate": completion_rate
+    }

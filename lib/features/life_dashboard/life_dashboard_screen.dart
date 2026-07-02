@@ -11,6 +11,7 @@ import 'widgets/daily_agenda_card.dart';
 import 'widgets/skill_dashboard_card.dart';
 import 'widgets/mission_center_card.dart';
 import 'widgets/achievement_center_card.dart';
+import 'widgets/personalized_recommendations_card.dart';
 import 'widgets/daily_rewards_card.dart';
 import 'widgets/reports_card.dart';
 
@@ -193,6 +194,8 @@ class _LifeDashboardScreenState extends ConsumerState<LifeDashboardScreen>
 
   List<Widget> _todayTab() => [
     const TodayHeaderCard(),
+    const SizedBox(height: 20),
+    const PersonalizedRecommendationsCard(),
     const SizedBox(height: 20),
     _buildLearningEngineHub(),
     const SizedBox(height: 20),

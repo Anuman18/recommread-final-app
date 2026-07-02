@@ -88,6 +88,7 @@ class LifeDashboardState {
   final String bestCategory;
   final String weakestSkill;
   final String nextRecommendation;
+  final Map<String, dynamic> dailyRecommendations;
   final bool isLoaded;
   final bool isLoading;
   final String? errorMessage;
@@ -107,6 +108,7 @@ class LifeDashboardState {
     this.bestCategory = '',
     this.weakestSkill = '',
     this.nextRecommendation = '',
+    this.dailyRecommendations = const {},
     this.isLoaded = false,
     this.isLoading = true,
     this.errorMessage,
@@ -127,6 +129,7 @@ class LifeDashboardState {
     String? bestCategory,
     String? weakestSkill,
     String? nextRecommendation,
+    Map<String, dynamic>? dailyRecommendations,
     bool? isLoaded,
     bool? isLoading,
     String? errorMessage,
@@ -147,6 +150,7 @@ class LifeDashboardState {
       bestCategory: bestCategory ?? this.bestCategory,
       weakestSkill: weakestSkill ?? this.weakestSkill,
       nextRecommendation: nextRecommendation ?? this.nextRecommendation,
+      dailyRecommendations: dailyRecommendations ?? this.dailyRecommendations,
       isLoaded: isLoaded ?? this.isLoaded,
       isLoading: isLoading ?? this.isLoading,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
@@ -241,9 +245,13 @@ class LifeDashboardNotifier extends StateNotifier<LifeDashboardState> {
         bestCategory: strongSkills.isNotEmpty ? strongSkills.first : '',
         weakestSkill: weakSkills.isNotEmpty ? weakSkills.first : '',
         nextRecommendation: dailyMap['ai_tutor_tip']?.toString() ?? '',
+        dailyRecommendations: dailyMap,
         isLoaded: true,
         isLoading: false,
       );
+      
+      // Track impression automatically on load
+      trackRecommendation('view', 'dashboard', 'daily_recommendations');
     } on ApiException catch (e) {
       state = state.copyWith(isLoading: false, isLoaded: true, errorMessage: e.message);
     } catch (_) {
@@ -253,6 +261,19 @@ class LifeDashboardNotifier extends StateNotifier<LifeDashboardState> {
         errorMessage: 'Failed to load life dashboard.',
       );
     }
+  }
+
+  Future<void> trackRecommendation(String eventType, String itemType, String itemId) async {
+    try {
+      await apiClient.post(
+        '/api/v1/recommendations/track',
+        body: {
+          'event_type': eventType,
+          'item_type': itemType,
+          'item_id': itemId,
+        },
+      );
+    } catch (_) {}
   }
 
   Future<void> toggleAgendaItem(String id) async {
