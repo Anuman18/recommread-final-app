@@ -80,7 +80,14 @@ class ApiClient {
     try {
       final decoded = json.decode(response.body);
       if (decoded is Map && decoded.containsKey('detail')) {
-        errorMsg = decoded['detail'];
+        final detail = decoded['detail'];
+        if (detail is String) {
+          errorMsg = detail;
+        } else if (detail is List) {
+          errorMsg = detail.map((e) => e is Map ? (e['msg'] ?? e.toString()) : e.toString()).join(', ');
+        } else {
+          errorMsg = detail.toString();
+        }
       }
     } catch (_) {}
 
