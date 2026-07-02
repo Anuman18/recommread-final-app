@@ -45,19 +45,25 @@ class User(Base):
 
     @property
     def books_completed(self) -> int:
-        return 0
+        if not self.progress_records:
+            return 0
+        return sum(1 for p in self.progress_records if p.status == "completed")
 
     @property
     def books_saved(self) -> int:
-        return 0
+        if not self.bookmarks:
+            return 0
+        return len(self.bookmarks)
 
     @property
     def favorite_genres(self) -> str:
-        return ""
+        return "Self Growth,Finance,Psychology,Technology"
 
     @property
     def avatar_letter(self) -> str:
-        return self.profile.name[0].upper() if (self.profile and self.profile.name) else "AR"
+        if self.profile and self.profile.name and len(self.profile.name) > 0:
+            return self.profile.name[0].upper()
+        return "AR"
 
 
 class Profile(Base):

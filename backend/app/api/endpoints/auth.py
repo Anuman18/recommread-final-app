@@ -23,23 +23,30 @@ def signup(user_in: UserCreate, db: Session = Depends(get_db)):
             detail="The user with this email already exists in the system",
         )
     
-    # Create user
-    hashed_password = get_password_hash(user_in.password)
-    user = User(email=user_in.email, hashed_password=hashed_password)
-    db.add(user)
-    db.commit()
-    db.refresh(user)
+    try:
+        # Create user
+        hashed_password = get_password_hash(user_in.password)
+        user = User(email=user_in.email, hashed_password=hashed_password)
+        db.add(user)
+        db.flush() # Populate user.id for relation mappings
 
-    # Initialize Profile
-    profile = Profile(user_id=user.id, name=user.email.split("@")[0].capitalize())
-    db.add(profile)
+        # Initialize Profile
+        profile = Profile(user_id=user.id, name=user.email.split("@")[0].capitalize())
+        db.add(profile)
 
-    # Initialize Settings
-    settings_obj = UserSettings(user_id=user.id)
-    db.add(settings_obj)
-    db.commit()
-
-    return user
+        # Initialize Settings
+        settings_obj = UserSettings(user_id=user.id)
+        db.add(settings_obj)
+        
+        db.commit()
+        db.refresh(user)
+        return user
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occurred during account creation: {str(e)}"
+        )
 
 @router.post("/login", response_model=Token)
 def login(
