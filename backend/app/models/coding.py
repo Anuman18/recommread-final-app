@@ -35,3 +35,15 @@ class UserQuestionProgress(Base):
     solved_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
 
     user = relationship("User", back_populates="question_progress")
+
+
+class LeaderboardEntry(Base):
+    __tablename__ = "leaderboard"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True) # None for seed mock leaders
+    name = Column(String, nullable=False)
+    xp = Column(Integer, default=0, index=True)
+    avatar = Column(String, default="⚡")
+    rank = Column(Integer, default=0)
+    last_updated = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())

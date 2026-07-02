@@ -1,27 +1,46 @@
 from sqlalchemy.orm import Session
-from ..models.career import Career, Topic, Resource, Project, ProjectMilestone
+from ..models.career import CareerGoal, LearningPath, Roadmap, Topic, LearningResource, Project, ProjectMilestone, Quiz, QuizQuestion
 from ..models.coding import CodingQuestion
-from ..models.interview import InterviewType, InterviewQuestion
-from ..models.user import Profile
+from ..models.interview import InterviewType, InterviewQuestion, Badge
 
 def seed_database(db: Session):
     # Check if already seeded
-    if db.query(Career).first() is not None:
+    if db.query(CareerGoal).first() is not None:
         return
 
-    print("Seeding database with mock AI Career & Learning OS data...")
+    print("Seeding database with updated AI Career & Learning OS schema...")
 
-    # 1. Careers
+    # 1. CareerGoals
     careers = [
-        Career(slug="ai_engineer", name="AI Engineer", description="Build state-of-the-art neural architectures, fine-tune LLMs, and optimize real-time inference scales."),
-        Career(slug="data_scientist", name="Data Scientist", description="Analyze complex statistical models, build custom predictors, and translate dataset footprints into business revenue."),
-        Career(slug="ux_designer", name="UI/UX Designer", description="Formulate user journeys, audit interface layouts, and coordinate pixel-perfect developer handoffs."),
+        CareerGoal(slug="ai_engineer", name="AI Engineer", description="Build state-of-the-art neural architectures, fine-tune LLMs, and optimize real-time inference scales."),
+        CareerGoal(slug="data_scientist", name="Data Scientist", description="Analyze complex statistical models, build custom predictors, and translate dataset footprints into business revenue."),
+        CareerGoal(slug="ux_designer", name="UI/UX Designer", description="Formulate user journeys, audit interface layouts, and coordinate pixel-perfect developer handoffs."),
     ]
     for c in careers:
         db.add(c)
     db.commit()
 
-    # 2. Topics
+    # 2. LearningPaths
+    paths = [
+        LearningPath(id=1, career_slug="ai_engineer", title="AI Engineering Masterclass", description="From Python foundations to transformer optimization layers.", estimated_weeks=16),
+        LearningPath(id=2, career_slug="data_scientist", title="Data Science Core Track", description="Structured path detailing statistics, regression, and data analytics tools.", estimated_weeks=12),
+        LearningPath(id=3, career_slug="ux_designer", title="Product Design Foundation", description="Formulate layouts, conduct research, and structure design systems.", estimated_weeks=10),
+    ]
+    for p in paths:
+        db.add(p)
+    db.commit()
+
+    # 3. Roadmaps
+    roadmaps = [
+        Roadmap(id=1, career_slug="ai_engineer", title="Phase 1: Deep Learning Foundations", milestones_json=["Learn PyTorch Tensors", "Understand Neural Networks Backprop", "Matrix Multiplications Math"], order_index=1),
+        Roadmap(id=2, career_slug="ai_engineer", title="Phase 2: Transformers & LLMs", milestones_json=["Write Self-Attention layer", "KV Caching implementation", "LoRA Fine-tuning rules"], order_index=2),
+        Roadmap(id=3, career_slug="data_scientist", title="Phase 1: Statistical Foundations", milestones_json=["Gaussian Normal distributions", "T-tests & Hypothesis evaluation", "Merge Pandas transaction tables"], order_index=1),
+    ]
+    for rm in roadmaps:
+        db.add(rm)
+    db.commit()
+
+    # 4. Topics
     topics = [
         # AI Engineer
         Topic(id="ai_python", career_slug="ai_engineer", name="Python Algorithms", total_questions=6, difficulty_distribution={"Easy": 3, "Medium": 2, "Hard": 1}),
@@ -49,7 +68,7 @@ def seed_database(db: Session):
         db.add(t)
     db.commit()
 
-    # 3. CodingQuestions
+    # 5. CodingQuestions
     questions = [
         CodingQuestion(
             id="q1",
@@ -146,25 +165,25 @@ def seed_database(db: Session):
         db.add(q)
     db.commit()
 
-    # 4. Resources
+    # 6. LearningResources
     resources = [
         # AI Engineer
-        Resource(id=1, career_slug="ai_engineer", title="Official PyTorch Documentation", category="Documentation", url="https://pytorch.org/docs", description="Official API documentation detailing tensor arithmetic and network layer classes.", why_recommended="Deep learning foundations require detailed reference checkouts.", skills=["PyTorch", "Python"]),
-        Resource(id=2, career_slug="ai_engineer", title="Andrej Karpathy: Zero to Hero", category="YouTube", url="https://youtube.com", description="Complete masterclass on building neural nets, backpropagation mechanics, and GPT models from scratch.", why_recommended="Karpathy provides the highest-quality fundamentals explanation.", skills=["Transformers", "Neural Networks"]),
-        Resource(id=3, career_slug="ai_engineer", title="Deep Learning Specialization (Coursera)", category="Courses", url="https://coursera.org", description="Deep Learning course sequence covering ConvNets, RNNs, optimization, and training strategy structures.", why_recommended="Highly comprehensive overview for structured algorithm training.", skills=["Neural Networks", "Linear Algebra"]),
+        LearningResource(id=1, career_slug="ai_engineer", title="Official PyTorch Documentation", category="Documentation", url="https://pytorch.org/docs", description="Official API documentation detailing tensor arithmetic and network layer classes.", why_recommended="Deep learning foundations require detailed reference checkouts.", skills=["PyTorch", "Python"]),
+        LearningResource(id=2, career_slug="ai_engineer", title="Andrej Karpathy: Zero to Hero", category="YouTube", url="https://youtube.com", description="Complete masterclass on building neural nets, backpropagation mechanics, and GPT models from scratch.", why_recommended="Karpathy provides the highest-quality fundamentals explanation.", skills=["Transformers", "Neural Networks"]),
+        LearningResource(id=3, career_slug="ai_engineer", title="Deep Learning Specialization (Coursera)", category="Courses", url="https://coursera.org", description="Deep Learning course sequence covering ConvNets, RNNs, optimization, and training strategy structures.", why_recommended="Highly comprehensive overview for structured algorithm training.", skills=["Neural Networks", "Linear Algebra"]),
 
         # Data Scientist
-        Resource(id=4, career_slug="data_scientist", title="Pandas User Guide", category="Documentation", url="https://pandas.pydata.org/docs", description="Official Pandas manual detailing index alignment, sorting, merges, and indexing models.", why_recommended="Essential library reference for core data cleansing.", skills=["Pandas", "Python"]),
-        Resource(id=5, career_slug="data_scientist", title="StatQuest: Machine Learning Basics", category="YouTube", url="https://youtube.com", description="Intelligent breakdown of regression models, Random Forests, bagging, boosting, and variance control.", why_recommended="Visual descriptions make statistics math intuitive.", skills=["Statistics", "ML Theory"]),
+        LearningResource(id=4, career_slug="data_scientist", title="Pandas User Guide", category="Documentation", url="https://pandas.pydata.org/docs", description="Official Pandas manual detailing index alignment, sorting, merges, and indexing models.", why_recommended="Essential library reference for core data cleansing.", skills=["Pandas", "Python"]),
+        LearningResource(id=5, career_slug="data_scientist", title="StatQuest: Machine Learning Basics", category="YouTube", url="https://youtube.com", description="Intelligent breakdown of regression models, Random Forests, bagging, boosting, and variance control.", why_recommended="Visual descriptions make statistics math intuitive.", skills=["Statistics", "ML Theory"]),
 
         # UI/UX Designer
-        Resource(id=6, career_slug="ux_designer", title="Figma Help Center: Dev Mode", category="Documentation", url="https://figma.com", description="Official guides explaining dev handoff modes, inspect panels, styles translations, and code attributes.", why_recommended="Key interface handoff documentation for designers.", skills=["Figma", "Handoff"]),
+        LearningResource(id=6, career_slug="ux_designer", title="Figma Help Center: Dev Mode", category="Documentation", url="https://figma.com", description="Official guides explaining dev handoff modes, inspect panels, styles translations, and code attributes.", why_recommended="Key interface handoff documentation for designers.", skills=["Figma", "Handoff"]),
     ]
     for r in resources:
         db.add(r)
     db.commit()
 
-    # 5. Projects
+    # 7. Projects
     projects = [
         # AI Engineer
         Project(
@@ -207,7 +226,7 @@ def seed_database(db: Session):
         db.add(p)
     db.commit()
 
-    # 6. ProjectMilestones
+    # 8. ProjectMilestones
     milestones = [
         ProjectMilestone(id="ai_proj_1_ms1", project_id="ai_proj_1", text="Process PDF layouts and parse images using OCR pipelines.", xp_reward=100, coins_reward=10),
         ProjectMilestone(id="ai_proj_1_ms2", project_id="ai_proj_1", text="Encode embeddings and save coordinates in Qdrant.", xp_reward=150, coins_reward=15),
@@ -221,7 +240,7 @@ def seed_database(db: Session):
         db.add(m)
     db.commit()
 
-    # 7. InterviewTypes
+    # 9. InterviewTypes
     types = [
         InterviewType(id="int_tech", name="Technical Interview", description="Deep-dive into language constraints, model scaling, and optimization.", icon="💻", question_count=3, duration_min=15),
         InterviewType(id="int_beh", name="Behavioral Interview", description="Assess communication structure, developer conflict resolution, and leadership.", icon="🤝", question_count=3, duration_min=12),
@@ -236,7 +255,7 @@ def seed_database(db: Session):
         db.add(t)
     db.commit()
 
-    # 8. InterviewQuestions
+    # 10. InterviewQuestions
     int_questions = [
         # AI Engineer
         InterviewQuestion(id="q_ai_1", career_slug="ai_engineer", type_id="int_tech", text="Explain the self-attention matrix query, key, and value multipliers. Why is scale scaling required?", difficulty="Hard", topic="Transformers"),
@@ -257,17 +276,29 @@ def seed_database(db: Session):
         db.add(iq)
     db.commit()
 
-    # 9. Seed some mock users for leaderboards
-    mock_users = [
-        {"name": "Siddharth M.", "xp": 3450, "avatar": "🦊", "career": "ai_engineer"},
-        {"name": "Priyanjali S.", "xp": 2900, "avatar": "🦁", "career": "data_scientist"},
-        {"name": "Rohan Gupta", "xp": 2100, "avatar": "🐯", "career": "ai_engineer"},
-        {"name": "Amit Kumar", "xp": 1200, "avatar": "🐻", "career": "ux_designer"},
-        {"name": "Nisha R.", "xp": 950, "avatar": "🐼", "career": "ux_designer"},
+    # 11. Badges
+    badges = [
+        Badge(slug="streak_7", title="Consistent Explorer", description="Maintain a 7-day learning streak in RecommRead.", icon="🔥"),
+        Badge(slug="perfect_100", title="Code Mastermind", description="Solve any technical interview or coding practice challenge with a perfect score.", icon="👑"),
     ]
-    # We will query profiles inside route or load them, but we can seed Profile details here.
-    # To keep user_id constraints clean, we won't seed actual foreign key users for mock entries;
-    # instead, we can just return these static mock leaderboard rows in our leaderboard endpoint!
-    # That is extremely clean and doesn't pollute the user tables.
+    for b in badges:
+        db.add(b)
+    db.commit()
 
-    print("Database seeded successfully.")
+    # 12. Quizzes & QuizQuestions
+    quizzes = [
+        Quiz(id=1, career_slug="data_scientist", title="Data Science Fundamentals Quiz", chapter_info="Chapter 1: Regression Analysis"),
+    ]
+    for qz in quizzes:
+        db.add(qz)
+    db.commit()
+
+    quiz_questions = [
+        QuizQuestion(id=1, quiz_id=1, text="What is SMOTE used for in classification pipelines?", options_json=["Over-sampling the minority class", "Feature dimensionality reduction", "Regularization optimization", "Under-sampling outliers"], correct_option_index=0, explanation="SMOTE stands for Synthetic Minority Over-sampling Technique, which synthetically increases instances in the minority class to balance data."),
+        QuizQuestion(id=2, quiz_id=1, text="Which metric is best suited for assessing classifiers handling extreme skew in class ratio?", options_json=["Accuracy", "Mean Absolute Error", "F1 Score / Precision-Recall AUC", "R-squared coefficient"], correct_option_index=2, explanation="Standard accuracy is highly misleading when datasets are imbalanced; AUC-PR and F1 scores gauge true performance accurately.")
+    ]
+    for qq in quiz_questions:
+        db.add(qq)
+    db.commit()
+
+    print("Seed data loaded successfully.")

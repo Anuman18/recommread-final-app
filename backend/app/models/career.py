@@ -3,36 +3,74 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from ..core.database import Base
 
-class Career(Base):
-    __tablename__ = "careers"
+class CareerGoal(Base):
+    __tablename__ = "career_goals"
 
     slug = Column(String, primary_key=True, index=True) # e.g. "ai_engineer", "data_scientist", "ux_designer"
     name = Column(String, nullable=False)
     description = Column(String, nullable=False)
+
+    learning_paths = relationship("LearningPath", back_populates="career_goal", cascade="all, delete-orphan")
+    roadmaps = relationship("Roadmap", back_populates="career_goal", cascade="all, delete-orphan")
+
+
+class LearningPath(Base):
+    __tablename__ = "learning_paths"
+
+    id = Column(Integer, primary_key=True, index=True)
+    career_slug = Column(String, ForeignKey("career_goals.slug", ondelete="CASCADE"), nullable=False)
+    title = Column(String, nullable=False)
+    description = Column(String, nullable=False)
+    estimated_weeks = Column(Integer, default=12)
+
+    career_goal = relationship("CareerGoal", back_populates="learning_paths")
+
+
+class Roadmap(Base):
+    __tablename__ = "roadmaps"
+
+    id = Column(Integer, primary_key=True, index=True)
+    career_slug = Column(String, ForeignKey("career_goals.slug", ondelete="CASCADE"), nullable=False)
+    title = Column(String, nullable=False) # e.g. "Phase 1: Foundations"
+    milestones_json = Column(JSON, nullable=True) # list of milestones text
+    order_index = Column(Integer, default=0)
+
+    career_goal = relationship("CareerGoal", back_populates="roadmaps")
 
 
 class Topic(Base):
     __tablename__ = "topics"
 
     id = Column(String, primary_key=True, index=True) # e.g. "ai_pytorch"
-    career_slug = Column(String, ForeignKey("careers.slug", ondelete="CASCADE"), nullable=False)
+    career_slug = Column(String, ForeignKey("career_goals.slug", ondelete="CASCADE"), nullable=False)
     name = Column(String, nullable=False)
     total_questions = Column(Integer, default=5)
     difficulty_distribution = Column(JSON, nullable=True) # e.g. {"Easy": 2, "Medium": 2, "Hard": 1}
 
 
-class Resource(Base):
-    __tablename__ = "resources"
+class LearningResource(Base):
+    __tablename__ = "learning_resources"
 
     id = Column(Integer, primary_key=True, index=True)
-    career_slug = Column(String, ForeignKey("careers.slug", ondelete="CASCADE"), nullable=False)
+    career_slug = Column(String, ForeignKey("career_goals.slug", ondelete="CASCADE"), nullable=False)
     title = Column(String, nullable=False)
-    category = Column(String, nullable=False) # e.g. "Documentation", "YouTube", "Courses"
+    category = Column(String, nullable=False, index=True) # e.g. "Documentation", "YouTube", "Courses"
     url = Column(String, nullable=False)
     description = Column(String, nullable=True)
     why_recommended = Column(String, nullable=True)
-    skills = Column(JSON, nullable=True) # list of skills: ["Python", "Numpy"]
+    skills = Column(JSON, nullable=True) # list of skills
     thumbnail_url = Column(String, nullable=True)
+
+
+class Bookmark(Base):
+    __tablename__ = "bookmarks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    resource_id = Column(Integer, ForeignKey("learning_resources.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", back_populates="bookmarks")
 
 
 class UserResourceProgress(Base):
@@ -40,17 +78,51 @@ class UserResourceProgress(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    resource_id = Column(Integer, ForeignKey("resources.id", ondelete="CASCADE"), nullable=False)
+    resource_id = Column(Integer, ForeignKey("learning_resources.id", ondelete="CASCADE"), nullable=False)
     is_bookmarked = Column(Boolean, default=False)
     is_completed = Column(Boolean, default=False)
     progress_percentage = Column(Float, default=0.0)
+
+
+class UserProjectProgress(Base):
+    __tablename__ = "user_project_progress"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    project_id = Column(String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    status = Column(String, default="unstarted") # unstarted, in_progress, completed
+    progress_percentage = Column(Float, default=0.0)
+
+    user = relationship("User", back_populates="project_progress")
+
+
+class UserMilestoneProgress(Base):
+    __tablename__ = "user_milestone_progress"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    milestone_id = Column(String, ForeignKey("project_milestones.id", ondelete="CASCADE"), nullable=False)
+    is_completed = Column(Boolean, default=False)
+
+
+
+class Mission(Base):
+    __tablename__ = "missions"
+
+    id = Column(String, primary_key=True, index=True) # e.g. "mission_1"
+    career_slug = Column(String, ForeignKey("career_goals.slug", ondelete="CASCADE"), nullable=False)
+    title = Column(String, nullable=False)
+    description = Column(String, nullable=False)
+    xp_reward = Column(Integer, default=300)
+    coins_reward = Column(Integer, default=30)
+    order_index = Column(Integer, default=0)
 
 
 class Project(Base):
     __tablename__ = "projects"
 
     id = Column(String, primary_key=True, index=True) # e.g. "ds_proj_1"
-    career_slug = Column(String, ForeignKey("careers.slug", ondelete="CASCADE"), nullable=False)
+    career_slug = Column(String, ForeignKey("career_goals.slug", ondelete="CASCADE"), nullable=False)
     name = Column(String, nullable=False)
     difficulty = Column(String, nullable=False) # Easy, Medium, Hard
     duration = Column(String, nullable=False) # e.g. "2 weeks"
@@ -80,22 +152,45 @@ class ProjectMilestone(Base):
     project = relationship("Project", back_populates="milestones")
 
 
-class UserProjectProgress(Base):
-    __tablename__ = "user_project_progress"
+class Quiz(Base):
+    __tablename__ = "quizzes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    career_slug = Column(String, ForeignKey("career_goals.slug", ondelete="CASCADE"), nullable=False)
+    title = Column(String, nullable=False) # e.g. "Data Science Basics Quiz"
+    chapter_info = Column(String, nullable=True)
+
+    questions = relationship("QuizQuestion", back_populates="quiz", cascade="all, delete-orphan")
+
+
+class QuizQuestion(Base):
+    __tablename__ = "quiz_questions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    quiz_id = Column(Integer, ForeignKey("quizzes.id", ondelete="CASCADE"), nullable=False)
+    text = Column(String, nullable=False)
+    options_json = Column(JSON, nullable=False) # list of strings
+    correct_option_index = Column(Integer, nullable=False)
+    explanation = Column(String, nullable=True)
+
+    quiz = relationship("Quiz", back_populates="questions")
+
+
+class UserProgress(Base):
+    __tablename__ = "progress"
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    project_id = Column(String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
-    status = Column(String, default="unstarted") # unstarted, in_progress, completed
+    item_type = Column(String, nullable=False, index=True) # e.g. "project", "resource", "quiz"
+    item_id = Column(String, nullable=False, index=True) # ID of project/resource/quiz
+    status = Column(String, default="in_progress") # in_progress, completed
     progress_percentage = Column(Float, default=0.0)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
 
-    user = relationship("User", back_populates="project_progress")
+    user = relationship("User", back_populates="progress_records")
 
 
-class UserMilestoneProgress(Base):
-    __tablename__ = "user_milestone_progress"
+# Aliases for backwards compatibility with API endpoints
+Career = CareerGoal
+Resource = LearningResource
 
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    milestone_id = Column(String, ForeignKey("project_milestones.id", ondelete="CASCADE"), nullable=False)
-    is_completed = Column(Boolean, default=False)

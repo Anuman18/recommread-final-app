@@ -14,10 +14,19 @@ class User(Base):
 
     profile = relationship("Profile", back_populates="user", uselist=False, cascade="all, delete-orphan")
     settings = relationship("UserSettings", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    skills = relationship("UserSkill", back_populates="user", cascade="all, delete-orphan")
+    xp_history = relationship("UserXPLedger", back_populates="user", cascade="all, delete-orphan")
+    coins_history = relationship("UserCoinsLedger", back_populates="user", cascade="all, delete-orphan")
+    history_logs = relationship("ActivityHistory", back_populates="user", cascade="all, delete-orphan")
+    achievements = relationship("UserAchievement", back_populates="user", cascade="all, delete-orphan")
+    badges = relationship("UserBadge", back_populates="user", cascade="all, delete-orphan")
+    progress_records = relationship("UserProgress", back_populates="user", cascade="all, delete-orphan")
+    bookmarks = relationship("Bookmark", back_populates="user", cascade="all, delete-orphan")
+    ai_chats = relationship("AIChat", back_populates="user", cascade="all, delete-orphan")
+    interview_history = relationship("UserInterviewRound", back_populates="user", cascade="all, delete-orphan")
     project_progress = relationship("UserProjectProgress", back_populates="user", cascade="all, delete-orphan")
     question_progress = relationship("UserQuestionProgress", back_populates="user", cascade="all, delete-orphan")
-    interview_history = relationship("UserInterviewRound", back_populates="user", cascade="all, delete-orphan")
-    achievements = relationship("UserAchievement", back_populates="user", cascade="all, delete-orphan")
+
 
 
 class Profile(Base):
@@ -33,14 +42,14 @@ class Profile(Base):
     daily_learning_time_min = Column(Integer, default=30)
     preferred_language = Column(String, default="English")
     career_slug = Column(String, default="ai_engineer")
-    skill_level = Column(String, default="Beginner") # Beginner, Intermediate, Advanced
+    skill_level = Column(String, default="Beginner")
     readiness_score = Column(Float, default=40.0)
 
     user = relationship("User", back_populates="profile")
 
 
 class UserSettings(Base):
-    __tablename__ = "user_settings"
+    __tablename__ = "settings"
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
@@ -51,6 +60,54 @@ class UserSettings(Base):
     sound_effects = Column(Boolean, default=True)
 
     user = relationship("User", back_populates="settings")
+
+
+class UserSkill(Base):
+    __tablename__ = "user_skills"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    skill_name = Column(String, nullable=False, index=True) # e.g. "Python", "SQL", "Auto Layout"
+    level_value = Column(Float, default=1.0) # proficiency index e.g. 3.4
+    last_updated = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
+
+    user = relationship("User", back_populates="skills")
+
+
+class UserXPLedger(Base):
+    __tablename__ = "user_xp"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    xp_amount = Column(Integer, nullable=False)
+    source = Column(String, nullable=False) # e.g. "Coding Challenge q1", "Project Track Completion"
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", back_populates="xp_history")
+
+
+class UserCoinsLedger(Base):
+    __tablename__ = "user_coins"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    coins_amount = Column(Integer, nullable=False)
+    source = Column(String, nullable=False) # e.g. "Confetti complete"
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", back_populates="coins_history")
+
+
+class ActivityHistory(Base):
+    __tablename__ = "history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    activity_type = Column(String, nullable=False, index=True) # e.g. "quiz_complete", "resource_read"
+    description = Column(String, nullable=False)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", back_populates="history_logs")
 
 
 class UserAchievement(Base):
@@ -65,3 +122,4 @@ class UserAchievement(Base):
     unlocked_at = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", back_populates="achievements")
+
