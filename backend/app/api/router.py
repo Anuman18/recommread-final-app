@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from .endpoints import auth, profile, resources, projects, coding, interview, leaderboard, recommendations, aggregation, gamification, tutor
+from .endpoints import auth, profile, resources, projects, coding, interview, leaderboard, recommendations, aggregation, gamification, tutor, career
 
 api_router = APIRouter()
 
@@ -14,3 +14,4 @@ api_router.include_router(recommendations.router, prefix="/recommendations", tag
 api_router.include_router(aggregation.router, prefix="/aggregation", tags=["aggregation"])
 api_router.include_router(gamification.router, prefix="/gamification", tags=["gamification"])
 api_router.include_router(tutor.router, prefix="/tutor", tags=["tutor"])
+api_router.include_router(career.router, prefix="/career", tags=["career"])
