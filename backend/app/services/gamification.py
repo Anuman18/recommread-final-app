@@ -205,11 +205,17 @@ class GamificationService:
         rounds = db.query(UserInterviewRound).filter(UserInterviewRound.user_id == user_id).all()
         avg_interview = sum(r.overall_score for r in rounds) / len(rounds) if rounds else 74.0
 
+        completed_missions = db.query(UserProgress).filter(
+            UserProgress.user_id == user_id,
+            UserProgress.item_type == "mission",
+            UserProgress.status == "completed"
+        ).count()
+
         return {
             "learning_hours": round(15.4 + (profile.xp / 1000.0), 1),
             "xp": profile.xp,
             "coins": profile.coins,
-            "completed_missions": completed_projs * 3 + 2, # Mock/Progress mapping
+            "completed_missions": completed_missions,
             "completed_projects": completed_projs,
             "completed_coding_questions": solved_qs,
             "completed_courses": completed_resources // 3,

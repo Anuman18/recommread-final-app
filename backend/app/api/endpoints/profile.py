@@ -5,6 +5,7 @@ from datetime import datetime
 
 from ...core.database import get_db
 from ...models.user import User, Profile, UserSettings, UserAchievement
+from ...models.career import Mission, UserProgress
 from ...schemas.user import ProfileResponse, ProfileUpdate, SettingsResponse, SettingsUpdate, AchievementResponse
 from ..deps import get_current_user
 
@@ -99,6 +100,34 @@ def get_dashboard_summary(
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
     
+    # Query database missions matching user's career_slug
+    db_missions = db.query(Mission).filter(Mission.career_slug == profile.career_slug).order_by(Mission.order_index).limit(3).all()
+    
+    daily_missions = []
+    if db_missions:
+        for m in db_missions:
+            # Check progress log to see if claimed
+            prog = db.query(UserProgress).filter(
+                UserProgress.user_id == current_user.id,
+                UserProgress.item_type == "mission",
+                UserProgress.item_id == m.id
+            ).first()
+            claimed = (prog.status == "completed") if prog else False
+            daily_missions.append({
+                "id": m.id,
+                "title": m.title,
+                "xp": m.xp_reward,
+                "claimed": claimed
+            })
+            
+    # Fallback default values if no seed database records found
+    if not daily_missions:
+        daily_missions = [
+            {"id": "dm1", "title": f"Explore {profile.career_slug.replace('_', ' ').title()} Basics", "xp": 150, "claimed": False},
+            {"id": "dm2", "title": "Complete 1 Coding Practice Topic", "xp": 200, "claimed": False},
+            {"id": "dm3", "title": "Chat with AI Mentor about Projects", "xp": 250, "claimed": False}
+        ]
+
     # Renders structured details for frontend
     return {
         "greeting": f"Good Morning, {profile.name}",
@@ -109,9 +138,5 @@ def get_dashboard_summary(
         "level": profile.level,
         "readiness_score": profile.readiness_score,
         "daily_mission_title": "Today's Agenda",
-        "daily_missions": [
-            {"id": "dm1", "title": "Complete 1 Practice Topic", "xp": 150, "claimed": False},
-            {"id": "dm2", "title": "Audit 1 Case Study Project", "xp": 250, "claimed": False},
-            {"id": "dm3", "title": "Solve 2 Python Questions", "xp": 200, "claimed": False}
-        ]
+        "daily_missions": daily_missions
     }
