@@ -83,6 +83,20 @@ class QuestionFeedback {
     required this.feedbackText,
     required this.improvementSuggestions,
   });
+
+  factory QuestionFeedback.fromJson(Map<String, dynamic> j) {
+    return QuestionFeedback(
+      questionText: j['question_text'] ?? '',
+      userAnswer: j['user_answer'] ?? '',
+      communicationScore: j['communication_score'] ?? 80,
+      technicalScore: j['technical_score'] ?? 80,
+      confidenceScore: j['confidence_score'] ?? 80,
+      problemSolvingScore: j['problem_solving_score'] ?? 80,
+      overallRating: (j['overall_rating'] as num?)?.toDouble() ?? 8.0,
+      feedbackText: j['feedback_text'] ?? '',
+      improvementSuggestions: List<String>.from(j['improvement_suggestions'] ?? []),
+    );
+  }
 }
 
 class InterviewReport {
@@ -109,6 +123,21 @@ class InterviewReport {
     required this.xpGained,
     required this.coinsGained,
   });
+
+  factory InterviewReport.fromJson(Map<String, dynamic> j) {
+    return InterviewReport(
+      id: j['id']?.toString() ?? '',
+      typeName: j['type_name'] ?? '',
+      overallScore: (j['overall_score'] as num?)?.toDouble() ?? 75.0,
+      strengths: List<String>.from(j['strengths'] ?? []),
+      weakAreas: List<String>.from(j['weak_areas'] ?? []),
+      topicsToRevise: List<String>.from(j['topics_to_revise'] ?? []),
+      recommendedProjects: List<String>.from(j['recommended_projects'] ?? []),
+      recommendedCoding: List<String>.from(j['recommended_coding'] ?? []),
+      xpGained: j['xp_gained'] ?? 500,
+      coinsGained: j['coins_gained'] ?? 50,
+    );
+  }
 }
 
 class InterviewHistoryItem {
@@ -125,6 +154,16 @@ class InterviewHistoryItem {
     required this.score,
     required this.readinessGained,
   });
+
+  factory InterviewHistoryItem.fromJson(Map<String, dynamic> j) {
+    return InterviewHistoryItem(
+      id: j['id']?.toString() ?? '',
+      typeName: j['type_name'] ?? '',
+      date: j['date'] ?? '',
+      score: (j['score'] as num?)?.toDouble() ?? 0.0,
+      readinessGained: (j['readiness_gained'] as num?)?.toDouble() ?? 3.5,
+    );
+  }
 }
 
 class InterviewAchievement {
@@ -289,6 +328,7 @@ final List<InterviewAchievement> _defaultAchievements = [
 
 class InterviewNotifier extends StateNotifier<InterviewState> {
   final Ref _ref;
+  String? _currentRoundId;
 
   InterviewNotifier(this._ref) : super(const InterviewState()) {
     loadInterviewDashboard();
@@ -304,7 +344,28 @@ class InterviewNotifier extends StateNotifier<InterviewState> {
         (m) => '_${m.group(0)!.toLowerCase()}',
       );
 
-      await apiClient.get('/interviews?career=$careerSlug');
+      final dash = await apiClient.get('/api/v1/interviews?career=$careerSlug');
+      
+      final typesList = (dash['interview_types'] as List)
+          .map((t) => InterviewType.fromJson(Map<String, dynamic>.from(t)))
+          .toList();
+      
+      final histJson = await apiClient.get('/api/v1/interviews/history');
+      final historyList = (histJson as List)
+          .map((h) => InterviewHistoryItem.fromJson(Map<String, dynamic>.from(h)))
+          .toList();
+
+      state = state.copyWith(
+        readinessScore: (dash['readiness_score'] as num?)?.toDouble() ?? 45.0,
+        currentScore: (dash['current_score'] as num?)?.toDouble() ?? 74.0,
+        completedInterviews: (dash['completed_interviews'] as num?)?.toInt() ?? 3,
+        weakSkills: List<String>.from(dash['weak_skills'] ?? []),
+        strongSkills: List<String>.from(dash['strong_skills'] ?? []),
+        interviewTypes: typesList,
+        history: historyList,
+        achievements: _defaultAchievements,
+        isLoading: false,
+      );
     } catch (_) {
       // Fallback
       final prefs = await SharedPreferences.getInstance();
@@ -337,49 +398,88 @@ class InterviewNotifier extends StateNotifier<InterviewState> {
     await loadInterviewDashboard();
   }
 
-  void startInterview(InterviewType type) {
-    final career = _ref.read(profileProvider).readingGoal.name;
-    final questions = _mockQuestionsByCareer[career] ?? _mockQuestionsByCareer['aiEngineer']!;
-
-    state = state.copyWith(
-      activeType: type,
-      activeQuestions: questions.take(type.questionCount).toList(),
-      currentQuestionIndex: 0,
-      userAnswers: [],
-      feedbacks: [],
-      latestReport: null,
-    );
+  Future<void> startInterview(InterviewType type) async {
+    state = state.copyWith(isLoading: true);
+    try {
+      final startResp = await apiClient.post(
+        '/api/v1/interviews/start',
+        body: {'type_id': type.id},
+      );
+      _currentRoundId = startResp['round_id']?.toString();
+      final qList = (startResp['questions'] as List)
+          .map((q) => InterviewQuestion.fromJson(Map<String, dynamic>.from(q)))
+          .toList();
+      
+      state = state.copyWith(
+        activeType: type,
+        activeQuestions: qList,
+        currentQuestionIndex: 0,
+        userAnswers: [],
+        feedbacks: [],
+        latestReport: null,
+        isLoading: false,
+      );
+    } catch (_) {
+      // Fallback
+      final career = _ref.read(profileProvider).readingGoal.name;
+      final questions = _mockQuestionsByCareer[career] ?? _mockQuestionsByCareer['aiEngineer']!;
+      _currentRoundId = 'rep_${DateTime.now().millisecondsSinceEpoch}';
+      state = state.copyWith(
+        activeType: type,
+        activeQuestions: questions.take(type.questionCount).toList(),
+        currentQuestionIndex: 0,
+        userAnswers: [],
+        feedbacks: [],
+        latestReport: null,
+        isLoading: false,
+      );
+    }
   }
 
-  void submitAnswer(String answer) {
+  Future<void> submitAnswer(String answer) async {
     final answers = List<String>.from(state.userAnswers);
     answers.add(answer);
 
     final currentQuestion = state.activeQuestions[state.currentQuestionIndex];
     
-    // Simulate AI Feedback generation for this question
-    final comScore = Random().nextInt(15) + 80;
-    final techScore = Random().nextInt(20) + 75;
-    final confScore = Random().nextInt(15) + 82;
-    final probScore = Random().nextInt(20) + 76;
-    final overall = (comScore + techScore + confScore + probScore) / 40.0; // scale to 0-10
+    QuestionFeedback? qFeedback;
+    try {
+      final feedbackResp = await apiClient.post(
+        '/api/v1/interviews/submit-answer',
+        body: {
+          'round_id': _currentRoundId,
+          'question_id': currentQuestion.id,
+          'answer': answer,
+        },
+      );
+      qFeedback = QuestionFeedback.fromJson(Map<String, dynamic>.from(feedbackResp));
+    } catch (_) {}
 
-    final qFeedback = QuestionFeedback(
-      questionText: currentQuestion.text,
-      userAnswer: answer,
-      communicationScore: comScore,
-      technicalScore: techScore,
-      confidenceScore: confScore,
-      problemSolvingScore: probScore,
-      overallRating: double.parse(overall.toStringAsFixed(1)),
-      feedbackText: 'You gave a highly structured explanation regarding ${currentQuestion.topic}.\n\n'
-          'To improve, verify you explicitly reference efficiency bounds (time & memory complexities) or design system spacing guidelines early in your pitch.',
-      improvementSuggestions: const [
-        'Reference specific complex constants.',
-        'Use the STAR method for behavioral parts.',
-        'Pause less during structural logic explanations.',
-      ],
-    );
+    // Fallback to local evaluation if network fails
+    if (qFeedback == null) {
+      final comScore = Random().nextInt(15) + 80;
+      final techScore = Random().nextInt(20) + 75;
+      final confScore = Random().nextInt(15) + 82;
+      final probScore = Random().nextInt(20) + 76;
+      final overall = (comScore + techScore + confScore + probScore) / 40.0; // scale to 0-10
+
+      qFeedback = QuestionFeedback(
+        questionText: currentQuestion.text,
+        userAnswer: answer,
+        communicationScore: comScore,
+        technicalScore: techScore,
+        confidenceScore: confScore,
+        problemSolvingScore: probScore,
+        overallRating: double.parse(overall.toStringAsFixed(1)),
+        feedbackText: 'You gave a highly structured explanation regarding ${currentQuestion.topic}.\n\n'
+            'To improve, verify you explicitly reference efficiency bounds (time & memory complexities) or design system spacing guidelines early in your pitch.',
+        improvementSuggestions: const [
+          'Reference specific complex constants.',
+          'Use the STAR method for behavioral parts.',
+          'Pause less during structural logic explanations.',
+        ],
+      );
+    }
 
     final currentFeedbacks = List<QuestionFeedback>.from(state.feedbacks);
     currentFeedbacks.add(qFeedback);
@@ -400,60 +500,73 @@ class InterviewNotifier extends StateNotifier<InterviewState> {
     }
   }
 
-  void _generateFinalReport() async {
+  Future<void> _generateFinalReport() async {
+    state = state.copyWith(isLoading: true);
+    
+    InterviewReport? report;
+    try {
+      final reportResp = await apiClient.post(
+        '/api/v1/interviews/report',
+        body: {'round_id': _currentRoundId},
+      );
+      report = InterviewReport.fromJson(Map<String, dynamic>.from(reportResp));
+    } catch (_) {}
+
     final prefs = await SharedPreferences.getInstance();
-    final typeName = state.activeType?.name ?? 'Mock Interview';
 
-    // Calculate overall average score
-    final totalOverall = state.feedbacks.fold<double>(0, (sum, f) => sum + f.overallRating);
-    final overallPercentage = (totalOverall / state.feedbacks.length) * 10.0;
+    if (report == null) {
+      final typeName = state.activeType?.name ?? 'Mock Interview';
+      final totalOverall = state.feedbacks.fold<double>(0, (sum, f) => sum + f.overallRating);
+      final overallPercentage = (totalOverall / state.feedbacks.length) * 10.0;
 
-    final report = InterviewReport(
-      id: 'rep_${DateTime.now().millisecondsSinceEpoch}',
-      typeName: typeName,
-      overallScore: double.parse(overallPercentage.toStringAsFixed(1)),
-      strengths: const [
-        'Clear layout structure & modularized logic concepts',
-        'Strong vocal confidence, minimal speech fillers',
-        'Solid architectural foundations & constraint limits matching',
-      ],
-      weakAreas: const [
-        'Deep parameter configurations details validation',
-        'Visual alignment details definitions description',
-      ],
-      topicsToRevise: const [
-        'Bias-variance mathematics details',
-        'Figma Auto layout nested constraints',
-      ],
-      recommendedProjects: const [
-        'Multimodal RAG Knowledge Assistant',
-      ],
-      recommendedCoding: const [
-        'Matrix Dot Product Multiplication',
-      ],
-      xpGained: 500,
-      coinsGained: 50,
-    );
+      report = InterviewReport(
+        id: _currentRoundId ?? 'rep_${DateTime.now().millisecondsSinceEpoch}',
+        typeName: typeName,
+        overallScore: double.parse(overallPercentage.toStringAsFixed(1)),
+        strengths: const [
+          'Clear layout structure & modularized logic concepts',
+          'Strong vocal confidence, minimal speech fillers',
+          'Solid architectural foundations & constraint limits matching',
+        ],
+        weakAreas: const [
+          'Deep parameter configurations details validation',
+          'Visual alignment details definitions description',
+        ],
+        topicsToRevise: const [
+          'Bias-variance mathematics details',
+          'Figma Auto layout nested constraints',
+        ],
+        recommendedProjects: const [
+          'Multimodal RAG Knowledge Assistant',
+        ],
+        recommendedCoding: const [
+          'Matrix Dot Product Multiplication',
+        ],
+        xpGained: 500,
+        coinsGained: 50,
+      );
+    }
 
     // Save records
     final nextCompleted = state.completedInterviews + 1;
     final nextReadiness = (state.readinessScore + 3.5).clamp(0.0, 100.0);
-    final nextAvgScore = (state.currentScore * 0.7) + (overallPercentage * 0.3);
+    final nextAvgScore = (state.currentScore * 0.7) + (report.overallScore * 0.3);
 
     await prefs.setInt('int_completed', nextCompleted);
     await prefs.setDouble('int_readiness', nextReadiness);
     await prefs.setDouble('int_avg_score', nextAvgScore);
 
     // Award rewards
-    await _ref.read(xpProvider.notifier).addXp(500);
+    await _ref.read(xpProvider.notifier).addXp(report.xpGained);
     final currentCoins = prefs.getInt('user_coins') ?? 100;
-    await prefs.setInt('user_coins', currentCoins + 50);
+    await prefs.setInt('user_coins', currentCoins + report.coinsGained);
 
     state = state.copyWith(
       readinessScore: double.parse(nextReadiness.toStringAsFixed(1)),
       currentScore: double.parse(nextAvgScore.toStringAsFixed(1)),
       completedInterviews: nextCompleted,
       latestReport: report,
+      isLoading: false,
     );
   }
 }

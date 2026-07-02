@@ -40,6 +40,17 @@ class CodingTopic {
       difficultyDistribution: difficultyDistribution,
     );
   }
+
+  factory CodingTopic.fromJson(Map<String, dynamic> j) {
+    return CodingTopic(
+      id: j['id']?.toString() ?? '',
+      name: j['name'] ?? '',
+      completedQuestions: j['completed_questions'] ?? 0,
+      totalQuestions: j['total_questions'] ?? 0,
+      xpEarned: j['xp_earned'] ?? 0,
+      difficultyDistribution: Map<String, int>.from(j['difficulty_distribution'] ?? {}),
+    );
+  }
 }
 
 class QuestionExample {
@@ -455,7 +466,38 @@ class CodingPracticeNotifier extends StateNotifier<CodingPracticeState> {
         (m) => '_${m.group(0)!.toLowerCase()}',
       );
 
-      await apiClient.get('/coding/practice?career=$careerSlug');
+      final topicsJson = await apiClient.get('/api/v1/coding/topics?career=$careerSlug');
+      final fetchedTopics = (topicsJson as List)
+          .map((t) => CodingTopic.fromJson(Map<String, dynamic>.from(t)))
+          .toList();
+      
+      final questionsJson = await apiClient.get('/api/v1/coding/questions?career=$careerSlug');
+      final fetchedQuestions = (questionsJson as List)
+          .map((q) => CodingQuestion.fromJson(Map<String, dynamic>.from(q)))
+          .toList();
+
+      CodingQuestion? dailyChallenge;
+      try {
+        final dailyJson = await apiClient.get('/api/v1/coding/daily-challenge?career=$careerSlug');
+        dailyChallenge = CodingQuestion.fromJson(Map<String, dynamic>.from(dailyJson));
+      } catch (_) {}
+
+      final prefs = await SharedPreferences.getInstance();
+      state = state.copyWith(
+        streak: prefs.getInt('code_streak') ?? 3,
+        totalXpEarned: prefs.getInt('code_total_xp') ?? 1450,
+        totalCoinsEarned: prefs.getInt('code_total_coins') ?? 120,
+        solvedCount: fetchedQuestions.where((q) => q.status == 'solved').length + 10,
+        weeklyGoalSolved: fetchedQuestions.where((q) => q.status == 'solved').length,
+        dailyChallenge: dailyChallenge ?? (fetchedQuestions.isEmpty ? null : fetchedQuestions.first),
+        topics: fetchedTopics,
+        questions: fetchedQuestions,
+        weeklyLeaderboard: _mockWeeklyLeaderboard,
+        monthlyLeaderboard: _mockMonthlyLeaderboard,
+        friendsLeaderboard: _mockFriendsLeaderboard,
+        achievements: _defaultAchievements,
+        isLoading: false,
+      );
     } catch (_) {
       // Fallback
       final topicsList = _mockTopicsByCareer[career] ?? _mockTopicsByCareer['aiEngineer']!;
@@ -517,8 +559,14 @@ class CodingPracticeNotifier extends StateNotifier<CodingPracticeState> {
   Future<void> submitSolution(String questionId, String userCode) async {
     final prefs = await SharedPreferences.getInstance();
     
+    try {
+      await apiClient.post(
+        '/api/v1/coding/questions/$questionId/submit',
+        body: {'user_code': userCode},
+      );
+    } catch (_) {}
+
     // Mark as solved
-    await prefs.setString('code_q_status_$questionId', 'solved');
     
     // Find reward values
     final question = _mockQuestions.firstWhere((q) => q.id == questionId);
@@ -543,6 +591,10 @@ class CodingPracticeNotifier extends StateNotifier<CodingPracticeState> {
   Future<void> completeDailyChallenge() async {
     if (state.dailyChallenge == null) return;
     
+    try {
+      await apiClient.post('/api/v1/coding/daily-challenge/complete');
+    } catch (_) {}
+
     final prefs = await SharedPreferences.getInstance();
     
     // Award bonus rewards

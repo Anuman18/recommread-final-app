@@ -590,7 +590,7 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
         (m) => '_${m.group(0)!.toLowerCase()}',
       );
 
-      final resourcesJson = await apiClient.get('/home/resources?career=$careerSlug');
+      final resourcesJson = await apiClient.get('/api/v1/resources?career=$careerSlug');
       final fetchedList = (resourcesJson as List)
           .map((r) => LearningResource.fromJson(Map<String, dynamic>.from(r)))
           .toList();
@@ -641,11 +641,7 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
     await prefs.setBool('res_bookmarked_$id', val);
     
     try {
-      if (val) {
-        await apiClient.post('/library/save?book_id=$id');
-      } else {
-        await apiClient.delete('/library/remove/$id');
-      }
+      await apiClient.post('/api/v1/resources/$id/bookmark');
     } catch (_) {}
   }
 
@@ -664,6 +660,12 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
   Future<void> _saveStatusLocal(String id, String status) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('res_status_$id', status);
+    
+    try {
+      if (status == 'completed') {
+        await apiClient.post('/api/v1/resources/$id/complete');
+      }
+    } catch (_) {}
   }
 
   void setCategory(String category) {

@@ -48,8 +48,8 @@ class ProjectMilestone {
       name: j['name'] ?? '',
       description: j['description'] ?? '',
       isCompleted: j['is_completed'] ?? false,
-      xpGained: j['xp_gained'] ?? 150,
-      coinsGained: j['coins_gained'] ?? 15,
+      xpGained: (j['xp_gained'] as num?)?.toInt() ?? 150,
+      coinsGained: (j['coins_gained'] as num?)?.toInt() ?? 15,
       isUnlocked: j['is_unlocked'] ?? false,
     );
   }
@@ -422,7 +422,7 @@ class ProjectsNotifier extends StateNotifier<ProjectsState> {
         (m) => '_${m.group(0)!.toLowerCase()}',
       );
 
-      final response = await apiClient.get('/projects?career=$careerSlug');
+      final response = await apiClient.get('/api/v1/projects?career=$careerSlug');
       final list = (response as List)
           .map((item) => Project.fromJson(Map<String, dynamic>.from(item)))
           .toList();
@@ -507,6 +507,12 @@ class ProjectsNotifier extends StateNotifier<ProjectsState> {
     // Save completion state locally
     await prefs.setBool('proj_${projectId}_mile_${milestoneId}_comp', true);
 
+    try {
+      await apiClient.post(
+        '/api/v1/projects/$projectId/milestones/complete',
+        body: {'milestone_id': milestoneId},
+      );
+    } catch (_) {}
     Project? updatedProject;
     final list = state.projects.map((p) {
       if (p.id == projectId) {
@@ -601,7 +607,21 @@ class ProjectsNotifier extends StateNotifier<ProjectsState> {
     chats[projectId] = chatList;
     state = state.copyWith(projectMentorChats: chats, isSendingMessage: true);
 
-    // Simulate AI Mentor typing/reply delay
+    // Try calling the backend AI Chat endpoint
+    try {
+      final chatResp = await apiClient.post(
+        '/api/v1/projects/$projectId/mentor/chat',
+        body: {'message': text},
+      );
+      final reply = chatResp['reply'] ?? '';
+      final mentorMsg = MentorMessage(sender: 'mentor', text: reply, timestamp: DateTime.now());
+      chatList.add(mentorMsg);
+      chats[projectId] = chatList;
+      state = state.copyWith(projectMentorChats: chats, isSendingMessage: false);
+      return;
+    } catch (_) {}
+
+    // Simulate AI Mentor typing/reply delay fallback
     await Future.delayed(const Duration(milliseconds: 1200));
 
     // Get current project milestone/context to generate smart responses
