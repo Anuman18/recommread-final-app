@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/constants/api_constants.dart';
 import '../../core/services/api_client.dart';
 
 class AuthUser {
@@ -29,15 +30,15 @@ class AuthUser {
   factory AuthUser.fromJson(Map<String, dynamic> json) {
     return AuthUser(
       id: json['id'],
-      name: json['name'],
+      name: json['name'] ?? 'User',
       email: json['email'],
-      readingGoal: json['reading_goal'] ?? 'selfGrowth',
+      readingGoal: json['reading_goal'] ?? 'ai_engineer',
       readingLevel: json['reading_level'] ?? 'intermediate',
       streak: json['streak'] ?? 0,
       booksCompleted: json['books_completed'] ?? 0,
       booksSaved: json['books_saved'] ?? 0,
       favoriteGenres: json['favorite_genres'] ?? '',
-      avatarLetter: json['avatar_letter'] ?? 'AR',
+      avatarLetter: json['avatar_letter'] ?? 'U',
     );
   }
 }
@@ -77,7 +78,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
           isLoading: false,
         ));
 
-  // Auto Login Check
   Future<bool> checkAutoLogin() async {
     state = AuthState(isAuthenticated: false, isLoading: true);
     if (!apiClient.hasToken) {
@@ -86,32 +86,29 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
 
     try {
-      final userJson = await apiClient.get('/api/v1/auth/me');
-      final user = AuthUser.fromJson(userJson);
+      final userJson = await apiClient.get(ApiConstants.authMe);
+      final user = AuthUser.fromJson(Map<String, dynamic>.from(userJson));
       state = AuthState(isAuthenticated: true, isLoading: false, user: user);
       return true;
     } catch (_) {
-      // Clear invalid token
       await apiClient.clearToken();
       state = AuthState(isAuthenticated: false, isLoading: false);
       return false;
     }
   }
 
-  // Sign In
   Future<bool> login(String email, String password) async {
     state = AuthState(isAuthenticated: false, isLoading: true);
     try {
-      final result = await apiClient.post('/api/v1/auth/login', body: {
+      final result = await apiClient.post(ApiConstants.authLogin, body: {
         'email': email,
         'password': password,
       });
       final String token = result['access_token'];
       await apiClient.saveToken(token);
 
-      // Fetch user profile
-      final userJson = await apiClient.get('/api/v1/auth/me');
-      final user = AuthUser.fromJson(userJson);
+      final userJson = await apiClient.get(ApiConstants.authMe);
+      final user = AuthUser.fromJson(Map<String, dynamic>.from(userJson));
 
       state = AuthState(isAuthenticated: true, isLoading: false, user: user);
       return true;
@@ -119,33 +116,43 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = AuthState(isAuthenticated: false, isLoading: false, errorMessage: e.message);
       return false;
     } catch (e) {
-      state = AuthState(isAuthenticated: false, isLoading: false, errorMessage: 'Network connection failed.');
+      state = AuthState(
+        isAuthenticated: false,
+        isLoading: false,
+        errorMessage: 'Unable to connect to the server.',
+      );
       return false;
     }
   }
 
-  // Sign Up
   Future<bool> signup(String name, String email, String password) async {
     state = AuthState(isAuthenticated: false, isLoading: true);
     try {
-      await apiClient.post('/api/v1/auth/signup', body: {
-        'name': name,
+      await apiClient.post(ApiConstants.authSignup, body: {
         'email': email,
         'password': password,
       });
-      
-      // Auto login after signup
-      return await login(email, password);
+
+      final loggedIn = await login(email, password);
+      if (loggedIn && name.trim().isNotEmpty) {
+        try {
+          await apiClient.put(ApiConstants.profileUpdate, body: {'name': name.trim()});
+        } catch (_) {}
+      }
+      return loggedIn;
     } on ApiException catch (e) {
       state = AuthState(isAuthenticated: false, isLoading: false, errorMessage: e.message);
       return false;
     } catch (e) {
-      state = AuthState(isAuthenticated: false, isLoading: false, errorMessage: 'Network connection failed.');
+      state = AuthState(
+        isAuthenticated: false,
+        isLoading: false,
+        errorMessage: 'Unable to connect to the server.',
+      );
       return false;
     }
   }
 
-  // Sign Out
   Future<void> logout() async {
     await apiClient.clearToken();
     state = AuthState(isAuthenticated: false, isLoading: false);

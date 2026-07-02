@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
@@ -16,17 +17,14 @@ class ApiException implements Exception {
 }
 
 class ApiClient {
-  // Use 10.0.2.2 for Android emulator, 127.0.0.1 for iOS simulator/macOS/web
-static final String baseUrl = kIsWeb
-    ? 'http://127.0.0.1:8000'
-    : (Platform.isAndroid
-        ? 'http://10.0.2.2:8000'
-        : 'http://192.168.1.7:8000');
+  static final String baseUrl = kIsWeb
+      ? 'http://127.0.0.1:8000'
+      : (Platform.isAndroid ? 'http://10.0.2.2:8000' : 'http://127.0.0.1:8000');
 
+  static const Duration _timeout = Duration(seconds: 30);
   static const String _tokenKey = 'jwt_token';
   String? _token;
-  
-  // Singleton instance
+
   static final ApiClient _instance = ApiClient._internal();
   factory ApiClient() => _instance;
   ApiClient._internal();
@@ -62,23 +60,44 @@ static final String baseUrl = kIsWeb
     return headers;
   }
 
-  // Handle Response & Errors
+  String _messageForStatus(int code, String fallback) {
+    switch (code) {
+      case 400:
+        return fallback.isNotEmpty ? fallback : 'Invalid request.';
+      case 401:
+        return 'Session expired. Please log in again.';
+      case 403:
+        return fallback.isNotEmpty ? fallback : 'You do not have permission to perform this action.';
+      case 404:
+        return fallback.isNotEmpty ? fallback : 'The requested resource was not found.';
+      case 409:
+        return fallback.isNotEmpty ? fallback : 'This action conflicts with existing data.';
+      case 422:
+        return fallback.isNotEmpty ? fallback : 'Validation failed. Please check your input.';
+      case 429:
+        return 'Too many requests. Please wait a moment and try again.';
+      case 500:
+        return 'Server error. Please try again later.';
+      case 503:
+        return 'Service temporarily unavailable. Please try again later.';
+      default:
+        return fallback.isNotEmpty ? fallback : 'An unexpected error occurred.';
+    }
+  }
+
   dynamic _handleResponse(http.Response response) {
     final code = response.statusCode;
     if (code >= 200 && code < 300) {
       if (response.body.isEmpty) return null;
       return json.decode(response.body);
     }
-    
-    // Auth failures
-    if (code == 401 || code == 403) {
-      // Clear token since session expired or unauthorized
+
+    if (code == 401) {
       clearToken();
-      throw ApiException('Session expired. Please log in again.', statusCode: code);
+      throw ApiException(_messageForStatus(code, ''), statusCode: code);
     }
 
-    // Try extracting detail message from API error
-    String errorMsg = 'An unexpected error occurred.';
+    String errorMsg = '';
     try {
       final decoded = json.decode(response.body);
       if (decoded is Map && decoded.containsKey('detail')) {
@@ -86,80 +105,64 @@ static final String baseUrl = kIsWeb
         if (detail is String) {
           errorMsg = detail;
         } else if (detail is List) {
-          errorMsg = detail.map((e) => e is Map ? (e['msg'] ?? e.toString()) : e.toString()).join(', ');
+          errorMsg = detail
+              .map((e) => e is Map ? (e['msg'] ?? e.toString()) : e.toString())
+              .join(', ');
         } else {
           errorMsg = detail.toString();
         }
       }
     } catch (_) {}
 
-    throw ApiException(errorMsg, statusCode: code);
+    throw ApiException(
+      _messageForStatus(code, errorMsg),
+      statusCode: code,
+    );
   }
 
-  // GET Request
+  Future<dynamic> _send(Future<http.Response> request) async {
+    try {
+      final response = await request.timeout(_timeout);
+      return _handleResponse(response);
+    } on TimeoutException {
+      throw ApiException('Request timed out. Please try again.');
+    } on SocketException {
+      throw ApiException('No internet connection.');
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw ApiException(e.toString());
+    }
+  }
+
   Future<dynamic> get(String path) async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl$path'),
-        headers: _getHeaders(),
-      );
-      return _handleResponse(response);
-    } on SocketException {
-      throw ApiException('No internet connection.');
-    } catch (e) {
-      if (e is ApiException) rethrow;
-      throw ApiException(e.toString());
-    }
+    return _send(http.get(
+      Uri.parse('$baseUrl$path'),
+      headers: _getHeaders(),
+    ));
   }
 
-  // POST Request
   Future<dynamic> post(String path, {Map<String, dynamic>? body}) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl$path'),
-        headers: _getHeaders(),
-        body: body != null ? json.encode(body) : null,
-      );
-      return _handleResponse(response);
-    } on SocketException {
-      throw ApiException('No internet connection.');
-    } catch (e) {
-      if (e is ApiException) rethrow;
-      throw ApiException(e.toString());
-    }
+    return _send(http.post(
+      Uri.parse('$baseUrl$path'),
+      headers: _getHeaders(),
+      body: body != null ? json.encode(body) : null,
+    ));
   }
 
-  // PUT Request
   Future<dynamic> put(String path, {Map<String, dynamic>? body}) async {
-    try {
-      final response = await http.put(
-        Uri.parse('$baseUrl$path'),
-        headers: _getHeaders(),
-        body: body != null ? json.encode(body) : null,
-      );
-      return _handleResponse(response);
-    } on SocketException {
-      throw ApiException('No internet connection.');
-    } catch (e) {
-      if (e is ApiException) rethrow;
-      throw ApiException(e.toString());
-    }
+    return _send(http.put(
+      Uri.parse('$baseUrl$path'),
+      headers: _getHeaders(),
+      body: body != null ? json.encode(body) : null,
+    ));
   }
 
-  // DELETE Request
   Future<dynamic> delete(String path) async {
-    try {
-      final response = await http.delete(
-        Uri.parse('$baseUrl$path'),
-        headers: _getHeaders(),
-      );
-      return _handleResponse(response);
-    } on SocketException {
-      throw ApiException('No internet connection.');
-    } catch (e) {
-      if (e is ApiException) rethrow;
-      throw ApiException(e.toString());
-    }
+    return _send(http.delete(
+      Uri.parse('$baseUrl$path'),
+      headers: _getHeaders(),
+    ));
   }
 }
 

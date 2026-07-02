@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/animated_button.dart';
+import '../../core/constants/api_constants.dart';
 import '../../core/services/api_client.dart';
 
 class FeedbackCenterScreen extends StatefulWidget {
@@ -50,12 +51,12 @@ class _FeedbackCenterScreenState extends State<FeedbackCenterScreen> {
 
     try {
       await apiClient.post(
-        '/api/v1/beta/feedback',
+        ApiConstants.betaFeedback,
         body: {
           'feedback_type': _selectedCategory,
           'content': description,
           'rating': _rating,
-          'target_id': _mockScreenshotEnabled ? 'screenshot_mock_payload' : null,
+          if (_mockScreenshotEnabled) 'target_id': 'screenshot_attachment',
         },
       );
 

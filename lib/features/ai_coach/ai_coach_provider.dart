@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/constants/api_constants.dart';
 import '../../core/services/api_client.dart';
-
-// ── Chat Message Model ─────────────────────────────────────────────────────
 
 class ChatMessage {
   final String id;
@@ -16,8 +15,6 @@ class ChatMessage {
     required this.timestamp,
   });
 }
-
-// ── Chat Session Model (History) ───────────────────────────────────────────
 
 class ChatSession {
   final String id;
@@ -47,17 +44,19 @@ class ChatSession {
   }
 }
 
-// ── AI Coach State Model ───────────────────────────────────────────────────
-
 class AiCoachState {
   final List<ChatSession> sessions;
   final String activeSessionId;
   final bool isTyping;
+  final bool isLoading;
+  final String? errorMessage;
 
   AiCoachState({
     required this.sessions,
     required this.activeSessionId,
     this.isTyping = false,
+    this.isLoading = false,
+    this.errorMessage,
   });
 
   ChatSession get activeSession =>
@@ -73,89 +72,105 @@ class AiCoachState {
     List<ChatSession>? sessions,
     String? activeSessionId,
     bool? isTyping,
+    bool? isLoading,
+    String? errorMessage,
+    bool clearError = false,
   }) {
     return AiCoachState(
       sessions: sessions ?? this.sessions,
       activeSessionId: activeSessionId ?? this.activeSessionId,
       isTyping: isTyping ?? this.isTyping,
+      isLoading: isLoading ?? this.isLoading,
+      errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
     );
   }
 }
-
-// ── AI Coach State Notifier ────────────────────────────────────────────────
 
 class AiCoachNotifier extends StateNotifier<AiCoachState> {
   AiCoachNotifier()
       : super(AiCoachState(
           sessions: [],
-          activeSessionId: 'session_1',
+          activeSessionId: '',
+          isLoading: true,
         )) {
-    _initSessions();
+    _initFromBackend();
   }
 
-  void _initSessions() {
-    final now = DateTime.now();
-    final firstSession = ChatSession(
-      id: 'session_1',
-      title: '🚀 Identity Transformation – Session 1',
-      messages: [
-        ChatMessage(
-          id: 'm1',
-          text: 'Welcome, Operator. I am your **Identity Transformation Mentor**. I\u2019ve analysed your target identity and current mission progress.\n\nUse the action cues below to **quiz yourself**, get a **mission briefing**, or ask me to **challenge you** with real-world tasks. Your transformation starts now. 🎯',
-          isUser: false,
-          timestamp: now.subtract(const Duration(minutes: 10)),
-        ),
-      ],
-      updatedAt: now,
-    );
-
-    final secondSession = ChatSession(
-      id: 'session_2',
-      title: '🧠 Deep Work – Cognitive Intensity Briefing',
-      messages: [
-        ChatMessage(
-          id: 'm2',
-          text: 'Explain Cal Newport\'s concept of high-intensity deep focus.',
-          isUser: true,
-          timestamp: now.subtract(const Duration(hours: 2)),
-        ),
-        ChatMessage(
-          id: 'm3',
-          text: 'Newport argues that **High-Quality Work Produced = (Time Spent) x (Intensity of Focus)**. To produce at your peak, you must work for extended periods with zero distractions.',
-          isUser: false,
-          timestamp: now.subtract(const Duration(hours: 2, minutes: 1)),
-        ),
-      ],
-      updatedAt: now.subtract(const Duration(hours: 2)),
-    );
-
-    state = AiCoachState(
-      sessions: [firstSession, secondSession],
-      activeSessionId: 'session_1',
-    );
+  Future<void> _initFromBackend() async {
+    try {
+      final response = await apiClient.post(
+        ApiConstants.tutorChatStart,
+        body: {'context_type': 'coach'},
+      );
+      final reply = response['reply']?.toString() ?? 'Welcome to your AI Coach session.';
+      final now = DateTime.now();
+      final session = ChatSession(
+        id: 'session_${now.millisecondsSinceEpoch}',
+        title: 'AI Coach Session',
+        messages: [
+          ChatMessage(
+            id: 'welcome',
+            text: reply,
+            isUser: false,
+            timestamp: now,
+          ),
+        ],
+        updatedAt: now,
+      );
+      state = AiCoachState(
+        sessions: [session],
+        activeSessionId: session.id,
+        isLoading: false,
+      );
+    } on ApiException catch (e) {
+      state = AiCoachState(
+        sessions: [],
+        activeSessionId: '',
+        isLoading: false,
+        errorMessage: e.message,
+      );
+    } catch (_) {
+      state = AiCoachState(
+        sessions: [],
+        activeSessionId: '',
+        isLoading: false,
+        errorMessage: 'Failed to start AI Coach session.',
+      );
+    }
   }
 
-  void startNewChat() {
-    final now = DateTime.now();
-    final newSessionId = 'session_${now.millisecondsSinceEpoch}';
-    final newSession = ChatSession(
-      id: newSessionId,
-      title: '💬 New Coaching Chat',
-      messages: [
-        ChatMessage(
-          id: 'welcome',
-          text: 'New mentoring session started. What would you like to work on? Choose an action cue below or type your own question. 🚀',
-          isUser: false,
-          timestamp: now,
-        ),
-      ],
-      updatedAt: now,
-    );
+  Future<void> startNewChat() async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      final response = await apiClient.post(
+        ApiConstants.tutorChatStart,
+        body: {'context_type': 'coach'},
+      );
+      final reply = response['reply']?.toString() ?? 'New coaching session started.';
+      final now = DateTime.now();
+      final newSessionId = 'session_${now.millisecondsSinceEpoch}';
+      final newSession = ChatSession(
+        id: newSessionId,
+        title: 'New Coaching Chat',
+        messages: [
+          ChatMessage(
+            id: 'welcome',
+            text: reply,
+            isUser: false,
+            timestamp: now,
+          ),
+        ],
+        updatedAt: now,
+      );
 
-    state = state.copyWith(
-      sessions: [newSession, ...state.sessions],
-      activeSessionId: newSessionId,
-    );
+      state = state.copyWith(
+        sessions: [newSession, ...state.sessions],
+        activeSessionId: newSessionId,
+        isLoading: false,
+      );
+    } on ApiException catch (e) {
+      state = state.copyWith(isLoading: false, errorMessage: e.message);
+    }
   }
 
   void selectSession(String sessionId) {
@@ -164,24 +179,14 @@ class AiCoachNotifier extends StateNotifier<AiCoachState> {
 
   void deleteSession(String sessionId) {
     final filtered = state.sessions.where((s) => s.id != sessionId).toList();
-    
-    // If we deleted the active one, pick the first remaining or make a new one
     String activeId = state.activeSessionId;
     if (activeId == sessionId) {
-      if (filtered.isNotEmpty) {
-        activeId = filtered.first.id;
-      } else {
-        // Automatically start new chat if list is empty
-        state = state.copyWith(sessions: filtered);
-        startNewChat();
-        return;
-      }
+      activeId = filtered.isNotEmpty ? filtered.first.id : '';
     }
-
-    state = state.copyWith(
-      sessions: filtered,
-      activeSessionId: activeId,
-    );
+    state = state.copyWith(sessions: filtered, activeSessionId: activeId);
+    if (filtered.isEmpty) {
+      startNewChat();
+    }
   }
 
   Future<void> sendMessage(String text) async {
@@ -194,14 +199,12 @@ class AiCoachNotifier extends StateNotifier<AiCoachState> {
       timestamp: DateTime.now(),
     );
 
-    // Update active session with user message
     final updatedSessions = state.sessions.map((session) {
       if (session.id == state.activeSessionId) {
         String title = session.title;
         if (title == 'New Coaching Chat') {
           title = text.length > 28 ? '${text.substring(0, 25)}...' : text;
         }
-
         return session.copyWith(
           messages: [...session.messages, userMessage],
           title: title,
@@ -211,101 +214,49 @@ class AiCoachNotifier extends StateNotifier<AiCoachState> {
       return session;
     }).toList();
 
-    state = state.copyWith(
-      sessions: updatedSessions,
-      isTyping: true,
-    );
+    state = state.copyWith(sessions: updatedSessions, isTyping: true, clearError: true);
 
-    String responseText = '';
     try {
-      final responseMap = await apiClient.post('/ai-coach/chat', body: {
-        'message': text,
-      });
-      responseText = responseMap['response'] ?? 'I am having trouble processing that right now.';
-    } catch (e) {
-      responseText = 'Error connecting to AI Coach service. Please try again.';
+      final responseMap = await apiClient.post(
+        ApiConstants.tutorChatContinue,
+        body: {
+          'context_type': 'coach',
+          'message': text,
+        },
+      );
+      final responseText = responseMap['reply']?.toString() ?? 'I could not process that request.';
+
+      final aiMessage = ChatMessage(
+        id: 'm_${DateTime.now().millisecondsSinceEpoch}_ai',
+        text: responseText,
+        isUser: false,
+        timestamp: DateTime.now(),
+      );
+
+      final finalSessions = state.sessions.map((session) {
+        if (session.id == state.activeSessionId) {
+          return session.copyWith(
+            messages: [...session.messages, aiMessage],
+            updatedAt: DateTime.now(),
+          );
+        }
+        return session;
+      }).toList();
+
+      state = state.copyWith(sessions: finalSessions, isTyping: false);
+    } on ApiException catch (e) {
+      state = state.copyWith(isTyping: false, errorMessage: e.message);
     }
-
-    final aiMessage = ChatMessage(
-      id: 'm_${DateTime.now().millisecondsSinceEpoch}_ai',
-      text: responseText,
-      isUser: false,
-      timestamp: DateTime.now(),
-    );
-
-    final finalSessions = state.sessions.map((session) {
-      if (session.id == state.activeSessionId) {
-        return session.copyWith(
-          messages: [...session.messages, aiMessage],
-          updatedAt: DateTime.now(),
-        );
-      }
-      return session;
-    }).toList();
-
-    state = state.copyWith(
-      sessions: finalSessions,
-      isTyping: false,
-    );
   }
 
-  // Regenerate last AI response
   Future<void> regenerateLastResponse() async {
     final session = state.activeSession;
-    if (session.messages.isEmpty) return;
-    
     final lastUserMsgIdx = session.messages.lastIndexWhere((m) => m.isUser);
     if (lastUserMsgIdx == -1) return;
 
     final lastUserText = session.messages[lastUserMsgIdx].text;
-    final trimmedMessages = session.messages.sublist(0, lastUserMsgIdx + 1);
-
-    final updatedSessions = state.sessions.map((s) {
-      if (s.id == state.activeSessionId) {
-        return s.copyWith(messages: trimmedMessages, updatedAt: DateTime.now());
-      }
-      return s;
-    }).toList();
-
-    state = state.copyWith(
-      sessions: updatedSessions,
-      isTyping: true,
-    );
-
-    String responseText = '';
-    try {
-      final responseMap = await apiClient.post('/ai-coach/chat', body: {
-        'message': lastUserText,
-      });
-      responseText = '${responseMap['response'] ?? 'I am having trouble processing that right now.'}\n*(Regenerated response)*';
-    } catch (e) {
-      responseText = 'Error connecting to AI Coach service. Please try again.';
-    }
-
-    final aiMessage = ChatMessage(
-      id: 'm_${DateTime.now().millisecondsSinceEpoch}_ai_regen',
-      text: responseText,
-      isUser: false,
-      timestamp: DateTime.now(),
-    );
-
-    final finalSessions = state.sessions.map((s) {
-      if (s.id == state.activeSessionId) {
-        return s.copyWith(
-          messages: [...s.messages, aiMessage],
-          updatedAt: DateTime.now(),
-        );
-      }
-      return s;
-    }).toList();
-
-    state = state.copyWith(
-      sessions: finalSessions,
-      isTyping: false,
-    );
+    await sendMessage(lastUserText);
   }
-
-
 }
 
 final aiCoachProvider = StateNotifierProvider<AiCoachNotifier, AiCoachState>((ref) {

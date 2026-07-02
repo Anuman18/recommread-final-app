@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
-// ── Agenda Item ───────────────────────────────────────────────────────────────
+import '../../core/constants/api_constants.dart';
+import '../../core/services/api_client.dart';
 
 class AgendaItem {
   final String id;
@@ -20,11 +19,15 @@ class AgendaItem {
     this.completed = false,
   });
 
-  AgendaItem copyWith({bool? completed}) =>
-      AgendaItem(id: id, title: title, subtitle: subtitle, icon: icon, xpReward: xpReward, completed: completed ?? this.completed);
+  AgendaItem copyWith({bool? completed}) => AgendaItem(
+        id: id,
+        title: title,
+        subtitle: subtitle,
+        icon: icon,
+        xpReward: xpReward,
+        completed: completed ?? this.completed,
+      );
 }
-
-// ── Achievement ───────────────────────────────────────────────────────────────
 
 class Achievement {
   final String id;
@@ -32,7 +35,7 @@ class Achievement {
   final String description;
   final String emoji;
   final bool unlocked;
-  final double progress; // 0.0 - 1.0
+  final double progress;
   final String progressLabel;
 
   const Achievement({
@@ -45,8 +48,6 @@ class Achievement {
     this.progressLabel = '',
   });
 }
-
-// ── Daily Reward ──────────────────────────────────────────────────────────────
 
 class DailyReward {
   final String id;
@@ -63,11 +64,14 @@ class DailyReward {
     this.claimed = false,
   });
 
-  DailyReward copyWith({bool? claimed}) =>
-      DailyReward(id: id, title: title, emoji: emoji, xp: xp, claimed: claimed ?? this.claimed);
+  DailyReward copyWith({bool? claimed}) => DailyReward(
+        id: id,
+        title: title,
+        emoji: emoji,
+        xp: xp,
+        claimed: claimed ?? this.claimed,
+      );
 }
-
-// ── Life Dashboard State ──────────────────────────────────────────────────────
 
 class LifeDashboardState {
   final List<AgendaItem> agenda;
@@ -79,12 +83,14 @@ class LifeDashboardState {
   final double monthlyHours;
   final int weeklyMissions;
   final int monthlyMissions;
-  final List<int> weeklyXpChart; // 7 day XP per day
-  final List<int> monthlyXpChart; // 4 week XP per week
+  final List<int> weeklyXpChart;
+  final List<int> monthlyXpChart;
   final String bestCategory;
   final String weakestSkill;
   final String nextRecommendation;
   final bool isLoaded;
+  final bool isLoading;
+  final String? errorMessage;
 
   const LifeDashboardState({
     this.agenda = const [],
@@ -102,6 +108,8 @@ class LifeDashboardState {
     this.weakestSkill = '',
     this.nextRecommendation = '',
     this.isLoaded = false,
+    this.isLoading = true,
+    this.errorMessage,
   });
 
   LifeDashboardState copyWith({
@@ -120,6 +128,9 @@ class LifeDashboardState {
     String? weakestSkill,
     String? nextRecommendation,
     bool? isLoaded,
+    bool? isLoading,
+    String? errorMessage,
+    bool clearError = false,
   }) {
     return LifeDashboardState(
       agenda: agenda ?? this.agenda,
@@ -137,61 +148,117 @@ class LifeDashboardState {
       weakestSkill: weakestSkill ?? this.weakestSkill,
       nextRecommendation: nextRecommendation ?? this.nextRecommendation,
       isLoaded: isLoaded ?? this.isLoaded,
+      isLoading: isLoading ?? this.isLoading,
+      errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
     );
   }
 }
 
-// ── Life Dashboard Notifier ───────────────────────────────────────────────────
-
 class LifeDashboardNotifier extends StateNotifier<LifeDashboardState> {
   LifeDashboardNotifier() : super(const LifeDashboardState()) {
-    _init();
+    _loadFromBackend();
   }
 
-  Future<void> _init() async {
-    final prefs = await SharedPreferences.getInstance();
+  Future<void> _loadFromBackend() async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      final dashboard = await apiClient.get(ApiConstants.profileDashboard);
+      final stats = await apiClient.get(ApiConstants.gamificationStatistics);
+      final achievementsJson = await apiClient.get(ApiConstants.gamificationAchievements);
+      final weakSkillsJson = await apiClient.get(ApiConstants.recommendationsWeakSkills);
+      final strongSkillsJson = await apiClient.get(ApiConstants.recommendationsStrongSkills);
+      final dailyRec = await apiClient.get(ApiConstants.recommendationsDaily);
+      final streakJson = await apiClient.get(ApiConstants.gamificationStreak);
 
-    final agendaCompleted = <String>{};
-    for (final item in _defaultAgenda) {
-      if (prefs.getBool('agenda_${item.id}') ?? false) agendaCompleted.add(item.id);
-    }
+      final dashboardMap = Map<String, dynamic>.from(dashboard as Map);
+      final statsMap = Map<String, dynamic>.from(stats as Map);
+      final dailyMap = Map<String, dynamic>.from(dailyRec as Map);
 
-    final rewardsClaimed = <String>{};
-    for (final r in _defaultRewards) {
-      if (prefs.getBool('reward_${r.id}') ?? false) rewardsClaimed.add(r.id);
-    }
+      final missions = (dashboardMap['daily_missions'] as List? ?? [])
+          .asMap()
+          .entries
+          .map((e) {
+            final m = Map<String, dynamic>.from(e.value);
+            return AgendaItem(
+              id: m['id']?.toString() ?? 'm_${e.key}',
+              title: m['title']?.toString() ?? '',
+              subtitle: 'Daily mission',
+              icon: '🎯',
+              xpReward: (m['xp'] as num?)?.toInt() ?? 150,
+              completed: m['claimed'] == true,
+            );
+          })
+          .toList();
 
-    final agenda = _defaultAgenda.map((a) => a.copyWith(completed: agendaCompleted.contains(a.id))).toList();
-    final rewards = _defaultRewards.map((r) => r.copyWith(claimed: rewardsClaimed.contains(r.id))).toList();
+      final achievements = (achievementsJson as List)
+          .map((a) {
+            final map = Map<String, dynamic>.from(a);
+            return Achievement(
+              id: map['slug']?.toString() ?? '',
+              title: map['title']?.toString() ?? '',
+              description: map['description']?.toString() ?? '',
+              emoji: map['icon']?.toString() ?? '🏆',
+              unlocked: true,
+              progress: 1.0,
+              progressLabel: 'Unlocked',
+            );
+          })
+          .toList();
 
-    if (mounted) {
-      state = state.copyWith(
-        agenda: agenda,
-        achievements: _defaultAchievements,
-        dailyRewards: rewards,
-        weeklyXp: 2340,
-        monthlyXp: 9800,
-        weeklyHours: 4.5,
-        monthlyHours: 18.2,
-        weeklyMissions: 3,
-        monthlyMissions: 11,
-        weeklyXpChart: [120, 340, 180, 560, 420, 700, 320],
-        monthlyXpChart: [1800, 2400, 3200, 2400],
-        bestCategory: 'AI & Machine Learning',
-        weakestSkill: 'Finance',
-        nextRecommendation: 'Start "Rich Dad Poor Dad" to boost Finance by 0.8',
+      final streak = (streakJson['daily_streak'] as num?)?.toInt() ?? 0;
+      final dailyRewards = [
+        DailyReward(
+          id: 'login',
+          title: 'Daily Login Bonus',
+          emoji: '🌟',
+          xp: 100,
+          claimed: streak > 0,
+        ),
+        DailyReward(
+          id: 'streak',
+          title: 'Streak Bonus',
+          emoji: '🔥',
+          xp: 250,
+          claimed: streak >= 7,
+        ),
+      ];
+
+      final weakSkills = (weakSkillsJson as List).cast<String>();
+      final strongSkills = (strongSkillsJson as List).cast<String>();
+
+      state = LifeDashboardState(
+        agenda: missions,
+        achievements: achievements,
+        dailyRewards: dailyRewards,
+        weeklyXp: (statsMap['xp'] as num?)?.toInt() ?? 0,
+        monthlyXp: ((statsMap['xp'] as num?)?.toInt() ?? 0) * 4,
+        weeklyHours: (statsMap['learning_hours'] as num?)?.toDouble() ?? 0,
+        monthlyHours: ((statsMap['learning_hours'] as num?)?.toDouble() ?? 0) * 4,
+        weeklyMissions: (statsMap['completed_missions'] as num?)?.toInt() ?? 0,
+        monthlyMissions: ((statsMap['completed_missions'] as num?)?.toInt() ?? 0) * 4,
+        weeklyXpChart: List.generate(7, (i) => ((statsMap['xp'] as num?)?.toInt() ?? 0) ~/ 7),
+        monthlyXpChart: List.generate(4, (i) => ((statsMap['xp'] as num?)?.toInt() ?? 0) ~/ 4),
+        bestCategory: strongSkills.isNotEmpty ? strongSkills.first : '',
+        weakestSkill: weakSkills.isNotEmpty ? weakSkills.first : '',
+        nextRecommendation: dailyMap['ai_tutor_tip']?.toString() ?? '',
         isLoaded: true,
+        isLoading: false,
+      );
+    } on ApiException catch (e) {
+      state = state.copyWith(isLoading: false, isLoaded: true, errorMessage: e.message);
+    } catch (_) {
+      state = state.copyWith(
+        isLoading: false,
+        isLoaded: true,
+        errorMessage: 'Failed to load life dashboard.',
       );
     }
   }
 
   Future<void> toggleAgendaItem(String id) async {
-    final prefs = await SharedPreferences.getInstance();
     final updated = state.agenda.map((a) {
       if (a.id == id) {
-        final newVal = !a.completed;
-        prefs.setBool('agenda_$id', newVal);
-        return a.copyWith(completed: newVal);
+        return a.copyWith(completed: !a.completed);
       }
       return a;
     }).toList();
@@ -199,20 +266,29 @@ class LifeDashboardNotifier extends StateNotifier<LifeDashboardState> {
   }
 
   Future<void> claimReward(String id) async {
-    final prefs = await SharedPreferences.getInstance();
-    final updated = state.dailyRewards.map((r) {
-      if (r.id == id && !r.claimed) {
-        prefs.setBool('reward_$id', true);
-        return r.copyWith(claimed: true);
-      }
-      return r;
-    }).toList();
-    state = state.copyWith(dailyRewards: updated);
+    try {
+      await apiClient.post(
+        ApiConstants.gamificationClaimReward,
+        body: {
+          'reward_source': id,
+          'xp_reward': 100,
+          'coins_reward': 10,
+        },
+      );
+      final updated = state.dailyRewards.map((r) {
+        if (r.id == id && !r.claimed) {
+          return r.copyWith(claimed: true);
+        }
+        return r;
+      }).toList();
+      state = state.copyWith(dailyRewards: updated);
+    } on ApiException catch (e) {
+      state = state.copyWith(errorMessage: e.message);
+    }
   }
 
   Future<void> refresh() async {
-    state = const LifeDashboardState();
-    await _init();
+    await _loadFromBackend();
   }
 }
 
@@ -220,32 +296,3 @@ final lifeDashboardProvider =
     StateNotifierProvider<LifeDashboardNotifier, LifeDashboardState>(
   (ref) => LifeDashboardNotifier(),
 );
-
-// ── Default Data ──────────────────────────────────────────────────────────────
-
-const _defaultAgenda = [
-  AgendaItem(id: 'a1', title: 'Read Chapter 3', subtitle: 'Atomic Habits · 20 min', icon: '📖', xpReward: 360),
-  AgendaItem(id: 'a2', title: 'Complete AI Quiz', subtitle: 'Mentor AI · 5 min', icon: '🧠', xpReward: 200),
-  AgendaItem(id: 'a3', title: 'Review Yesterday\'s Notes', subtitle: 'Deep Work · 10 min', icon: '📝', xpReward: 150),
-  AgendaItem(id: 'a4', title: 'Unlock New Skill', subtitle: 'Reach 2.0 in AI attribute', icon: '⚡', xpReward: 500),
-  AgendaItem(id: 'a5', title: 'Ask AI Coach', subtitle: 'Growth Mentor · 5 min', icon: '✨', xpReward: 100),
-  AgendaItem(id: 'a6', title: 'Log Learning Time', subtitle: 'Track your daily progress', icon: '⏱️', xpReward: 50),
-];
-
-const _defaultRewards = [
-  DailyReward(id: 'r1', title: 'Daily Login Bonus', emoji: '🌟', xp: 100),
-  DailyReward(id: 'r2', title: 'Reading Streak', emoji: '🔥', xp: 250),
-  DailyReward(id: 'r3', title: 'Skill Progress Bonus', emoji: '⚡', xp: 150),
-  DailyReward(id: 'r4', title: 'AI Coach Session', emoji: '🧠', xp: 200),
-];
-
-const _defaultAchievements = [
-  Achievement(id: 'ach1', title: '7 Day Streak', description: 'Read every day for a week', emoji: '🔥', unlocked: true, progress: 1.0, progressLabel: 'Unlocked'),
-  Achievement(id: 'ach2', title: '30 Day Streak', description: 'Read every day for a month', emoji: '💎', unlocked: false, progress: 0.23, progressLabel: '7/30 days'),
-  Achievement(id: 'ach3', title: '100 Hours Learned', description: 'Reach 100 hours of total learning', emoji: '⏱️', unlocked: false, progress: 0.18, progressLabel: '18.2/100 hrs'),
-  Achievement(id: 'ach4', title: 'First Mission Complete', description: 'Finish your first mission', emoji: '🏆', unlocked: true, progress: 1.0, progressLabel: 'Unlocked'),
-  Achievement(id: 'ach5', title: '10 Missions Done', description: 'Complete 10 full missions', emoji: '🚀', unlocked: false, progress: 0.4, progressLabel: '4/10 missions'),
-  Achievement(id: 'ach6', title: '1000 XP Earned', description: 'Accumulate 1000 XP', emoji: '🌟', unlocked: true, progress: 1.0, progressLabel: 'Unlocked'),
-  Achievement(id: 'ach7', title: '50 AI Chats', description: 'Have 50 sessions with AI Mentor', emoji: '✨', unlocked: false, progress: 0.16, progressLabel: '8/50 chats'),
-  Achievement(id: 'ach8', title: 'Level 5 Reached', description: 'Achieve Level 5 on your journey', emoji: '⚡', unlocked: false, progress: 0.42 / 5, progressLabel: 'Level 1'),
-];

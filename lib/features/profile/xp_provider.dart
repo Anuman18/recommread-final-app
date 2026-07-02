@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/constants/api_constants.dart';
+import '../../core/services/api_client.dart';
 import '../../models/book_model.dart';
 
 class XpState {
@@ -7,25 +8,34 @@ class XpState {
     required this.currentXp,
     required this.skills,
     required this.dailyChallenges,
+    this.isLoading = false,
+    this.errorMessage,
   });
 
   final int currentXp;
-  final Map<String, double> skills; // Skill Name -> Level (e.g. 1.2)
+  final Map<String, double> skills;
   final Map<String, bool> dailyChallenges;
+  final bool isLoading;
+  final String? errorMessage;
 
-  int get level => (currentXp / 3000).floor() + 1;
-  int get xpInCurrentLevel => currentXp % 3000;
-  double get levelProgress => xpInCurrentLevel / 3000.0;
+  int get level => (currentXp / 2500).floor() + 1;
+  int get xpInCurrentLevel => currentXp % 2500;
+  double get levelProgress => xpInCurrentLevel / 2500.0;
 
   XpState copyWith({
     int? currentXp,
     Map<String, double>? skills,
     Map<String, bool>? dailyChallenges,
+    bool? isLoading,
+    String? errorMessage,
+    bool clearError = false,
   }) {
     return XpState(
       currentXp: currentXp ?? this.currentXp,
       skills: skills ?? this.skills,
       dailyChallenges: dailyChallenges ?? this.dailyChallenges,
+      isLoading: isLoading ?? this.isLoading,
+      errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
     );
   }
 }
@@ -33,99 +43,94 @@ class XpState {
 class XpNotifier extends StateNotifier<XpState> {
   XpNotifier()
       : super(XpState(
-          currentXp: 1250,
-          skills: {
-            'Communication': 1.0,
-            'Leadership': 1.0,
-            'Finance': 1.0,
-            'AI': 1.0,
-            'Programming': 1.0,
-            'Business': 1.0,
-            'Psychology': 1.0,
-            'Productivity': 1.0,
-            'Critical Thinking': 1.0,
-          },
+          currentXp: 0,
+          skills: {},
           dailyChallenges: {
             'Read 15 Minutes': false,
             'Complete One Chapter': false,
             'Finish One Mission': false,
             'Ask AI One Question': false,
           },
+          isLoading: true,
         )) {
-    _loadFromLocal();
+    refreshFromBackend();
   }
 
-  Future<void> _loadFromLocal() async {
-    final prefs = await SharedPreferences.getInstance();
-    final xp = prefs.getInt('user_xp') ?? 1250;
-    
-    final Map<String, double> loadedSkills = {};
-    state.skills.forEach((key, val) {
-      loadedSkills[key] = prefs.getDouble('skill_$key') ?? val;
-    });
+  Future<void> refreshFromBackend() async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      final xpJson = await apiClient.get(ApiConstants.gamificationXp);
+      await apiClient.get(ApiConstants.gamificationLevel);
+      final strongSkillsJson = await apiClient.get(ApiConstants.recommendationsStrongSkills);
+      final weakSkillsJson = await apiClient.get(ApiConstants.recommendationsWeakSkills);
 
-    final Map<String, bool> loadedChallenges = {};
-    state.dailyChallenges.forEach((key, val) {
-      loadedChallenges[key] = prefs.getBool('challenge_$key') ?? val;
-    });
+      final totalXp = (xpJson['total_xp'] as num?)?.toInt() ?? 0;
+      final strongSkills = (strongSkillsJson as List).cast<String>();
+      final weakSkills = (weakSkillsJson as List).cast<String>();
 
-    state = XpState(
-      currentXp: xp,
-      skills: loadedSkills,
-      dailyChallenges: loadedChallenges,
-    );
+      final skills = <String, double>{};
+      for (final skill in strongSkills) {
+        skills[skill] = 3.5;
+      }
+      for (final skill in weakSkills) {
+        skills[skill] = 1.5;
+      }
+
+      state = state.copyWith(
+        currentXp: totalXp,
+        skills: skills.isEmpty ? state.skills : skills,
+        isLoading: false,
+      );
+    } on ApiException catch (e) {
+      state = state.copyWith(isLoading: false, errorMessage: e.message);
+    } catch (_) {
+      state = state.copyWith(isLoading: false, errorMessage: 'Failed to load XP data.');
+    }
   }
 
   Future<void> addXp(int amount) async {
-    final prefs = await SharedPreferences.getInstance();
-    final newXp = state.currentXp + amount;
-    await prefs.setInt('user_xp', newXp);
-
-    state = state.copyWith(currentXp: newXp);
+    await refreshFromBackend();
   }
 
   Future<void> toggleChallenge(String challenge) async {
-    final prefs = await SharedPreferences.getInstance();
     final newChallenges = Map<String, bool>.from(state.dailyChallenges);
     final val = !(newChallenges[challenge] ?? false);
     newChallenges[challenge] = val;
-    
-    await prefs.setBool('challenge_$challenge', val);
-    
-    // Grant 150 XP if challenge is completed
+
     if (val) {
-      await addXp(150);
-    } else {
-      await addXp(-150);
+      try {
+        await apiClient.post(
+          ApiConstants.gamificationClaimReward,
+          body: {
+            'reward_source': challenge,
+            'xp_reward': 150,
+            'coins_reward': 15,
+          },
+        );
+        await refreshFromBackend();
+      } on ApiException catch (e) {
+        state = state.copyWith(errorMessage: e.message);
+        return;
+      }
     }
-    
+
     state = state.copyWith(dailyChallenges: newChallenges);
   }
 
   Future<void> completeMission(Book book) async {
-    final prefs = await SharedPreferences.getInstance();
-    
-    // Add mission XP
-    await addXp(book.xpReward);
-    
-    // Increase related skills
-    final newSkills = Map<String, double>.from(state.skills);
-    for (final skill in book.skillsUnlocked) {
-      if (newSkills.containsKey(skill)) {
-        final currentVal = newSkills[skill] ?? 1.0;
-        final newVal = currentVal + 0.3;
-        newSkills[skill] = double.parse(newVal.toStringAsFixed(1));
-        await prefs.setDouble('skill_$skill', newSkills[skill]!);
-      }
+    try {
+      await apiClient.post(
+        ApiConstants.gamificationClaimReward,
+        body: {
+          'reward_source': 'mission_${book.id}',
+          'xp_reward': book.xpReward,
+          'coins_reward': 20,
+        },
+      );
+      await refreshFromBackend();
+    } on ApiException catch (e) {
+      state = state.copyWith(errorMessage: e.message);
     }
-    
-    // Update finish mission challenge
-    if (state.dailyChallenges.containsKey('Finish One Mission') && 
-        !(state.dailyChallenges['Finish One Mission'] ?? false)) {
-      await toggleChallenge('Finish One Mission');
-    }
-
-    state = state.copyWith(skills: newSkills);
   }
 }
 

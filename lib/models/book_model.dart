@@ -81,23 +81,50 @@ class Book {
     }
 
     final List<String> tagList = [];
-    final String tagsStr = json['tags'] ?? '';
-    if (tagsStr.isNotEmpty) {
-      tagList.addAll(tagsStr.split(',').map((t) => t.trim()));
+    final tagsRaw = json['tags'];
+    if (tagsRaw is List) {
+      tagList.addAll(tagsRaw.map((t) => t.toString()));
+    } else if (tagsRaw is String && tagsRaw.isNotEmpty) {
+      tagList.addAll(tagsRaw.split(',').map((t) => t.trim()));
     }
 
     return Book(
-      id: json['id'] ?? '',
+      id: json['id']?.toString() ?? '',
       title: json['title'] ?? '',
-      author: json['author'] ?? '',
-      genre: json['genre'] ?? '',
+      author: json['author'] ?? json['provider'] ?? 'Unknown',
+      genre: json['genre'] ?? json['topic'] ?? 'Learning',
       rating: (json['rating'] ?? 4.5).toDouble(),
       description: json['description'] ?? '',
       coverColors: colors,
       coverEmoji: json['cover_emoji'] ?? '📖',
-      totalPages: json['total_pages'] ?? 300,
-      readPages: json['read_pages'] ?? 0,
+      totalPages: (json['total_pages'] as num?)?.toInt() ??
+          ((json['estimated_learning_time_min'] as num?)?.toInt() ?? 300),
+      readPages: (json['read_pages'] as num?)?.toInt() ?? 0,
       tags: tagList,
+    );
+  }
+
+  /// Maps aggregation search results to [Book] for the search UI.
+  factory Book.fromSearchResult(Map<String, dynamic> json, {required int index}) {
+    final provider = json['provider']?.toString() ?? 'Resource';
+    final tags = json['tags'] is List
+        ? List<String>.from((json['tags'] as List).map((t) => t.toString()))
+        : <String>[];
+    if (json['skills'] is List) {
+      tags.addAll((json['skills'] as List).map((s) => s.toString()));
+    }
+
+    return Book(
+      id: json['url']?.toString() ?? 'search_$index',
+      title: json['title']?.toString() ?? '',
+      author: provider,
+      genre: json['topic']?.toString() ?? json['difficulty']?.toString() ?? 'Learning',
+      rating: ((json['popularity_score'] as num?)?.toDouble() ?? 80) / 20,
+      description: json['description']?.toString() ?? '',
+      coverColors: const [Color(0xFF1565C0), Color(0xFF0D47A1)],
+      coverEmoji: '📚',
+      totalPages: (json['estimated_learning_time_min'] as num?)?.toInt() ?? 60,
+      tags: tags,
     );
   }
 

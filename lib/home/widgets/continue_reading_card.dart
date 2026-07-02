@@ -18,7 +18,8 @@ class _ContinueLearningCardState extends State<ContinueLearningCard>
   late final Animation<double> _progressAnim;
   late final AnimationController _pressCtrl;
 
-  static const _mockProgress = 0.38; // will come from backend
+  double get _progressValue =>
+      widget.resource.isBookmarked ? 0.5 : 0.0;
 
   @override
   void initState() {
@@ -27,7 +28,7 @@ class _ContinueLearningCardState extends State<ContinueLearningCard>
       vsync: this,
       duration: const Duration(milliseconds: 900),
     );
-    _progressAnim = Tween<double>(begin: 0, end: _mockProgress)
+    _progressAnim = Tween<double>(begin: 0, end: _progressValue)
         .animate(CurvedAnimation(parent: _progressCtrl, curve: Curves.easeOutCubic));
 
     _pressCtrl = AnimationController(

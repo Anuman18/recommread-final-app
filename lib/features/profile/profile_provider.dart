@@ -1,31 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/constants/api_constants.dart';
 import '../../core/services/api_client.dart';
+import '../../core/utils/career_utils.dart';
 import '../onboarding/onboarding_provider.dart';
-
-// ── Mappings Helpers ────────────────────────────────────────────────────────
-
-ReadingGoal _parseGoal(String goalStr) {
-  for (final val in ReadingGoal.values) {
-    if (val.name == goalStr) return val;
-  }
-  return ReadingGoal.aiEngineer;
-}
-
-String _goalToString(ReadingGoal goal) {
-  return goal.toString().split('.').last;
-}
-
-ReadingLevel _parseLevel(String levelStr) {
-  switch (levelStr) {
-    case 'beginner':
-      return ReadingLevel.beginner;
-    case 'advanced':
-      return ReadingLevel.advanced;
-    default:
-      return ReadingLevel.intermediate;
-  }
-}
-// ── Profile State Model ────────────────────────────────────────────────────
 
 class ProfileState {
   final String name;
@@ -42,6 +19,7 @@ class ProfileState {
   final int pagesReadThisMonth;
   final int totalReadingTimeHours;
   final bool isLoading;
+  final String? errorMessage;
 
   ProfileState({
     required this.name,
@@ -58,6 +36,7 @@ class ProfileState {
     required this.pagesReadThisMonth,
     required this.totalReadingTimeHours,
     this.isLoading = false,
+    this.errorMessage,
   });
 
   ProfileState copyWith({
@@ -75,6 +54,8 @@ class ProfileState {
     int? pagesReadThisMonth,
     int? totalReadingTimeHours,
     bool? isLoading,
+    String? errorMessage,
+    bool clearError = false,
   }) {
     return ProfileState(
       name: name ?? this.name,
@@ -91,59 +72,63 @@ class ProfileState {
       pagesReadThisMonth: pagesReadThisMonth ?? this.pagesReadThisMonth,
       totalReadingTimeHours: totalReadingTimeHours ?? this.totalReadingTimeHours,
       isLoading: isLoading ?? this.isLoading,
+      errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
     );
   }
 }
 
-// ── Profile State Notifier ─────────────────────────────────────────────────
-
 class ProfileNotifier extends StateNotifier<ProfileState> {
   ProfileNotifier()
       : super(ProfileState(
-          name: 'Alex Reader',
-          avatarLetter: 'AR',
+          name: '',
+          avatarLetter: 'U',
           readingLevel: ReadingLevel.intermediate,
           streak: 0,
           booksCompleted: 0,
           booksSaved: 0,
           readingGoal: ReadingGoal.aiEngineer,
           favoriteGenres: {},
-          favoriteAuthors: ['James Clear', 'Cal Newport', 'Morgan Housel', 'Marcus Aurelius'],
+          favoriteAuthors: [],
           isDarkMode: true,
           language: 'English',
-          pagesReadThisMonth: 120,
-          totalReadingTimeHours: 10,
+          pagesReadThisMonth: 0,
+          totalReadingTimeHours: 0,
           isLoading: true,
         )) {
     loadProfile();
   }
 
   Future<void> loadProfile() async {
-    state = state.copyWith(isLoading: true);
+    state = state.copyWith(isLoading: true, clearError: true);
     try {
-      final userJson = await apiClient.get('/profile');
-      if (userJson != null) {
-        final String genresStr = userJson['favorite_genres'] ?? '';
-        final genresSet = genresStr.isEmpty 
-            ? <String>{} 
-            : genresStr.split(',').map((g) => g.trim()).toSet();
+      final userJson = await apiClient.get(ApiConstants.authMe);
+      final profileJson = await apiClient.get(ApiConstants.profile);
 
-        state = state.copyWith(
-          name: userJson['name'] ?? 'User Name',
-          avatarLetter: userJson['avatar_letter'] ?? 'AR',
-          readingGoal: _parseGoal(userJson['reading_goal'] ?? 'selfGrowth'),
-          readingLevel: _parseLevel(userJson['reading_level'] ?? 'intermediate'),
-          streak: userJson['streak'] ?? 0,
-          booksCompleted: userJson['books_completed'] ?? 0,
-          booksSaved: userJson['books_saved'] ?? 0,
-          favoriteGenres: genresSet,
-          isLoading: false,
-        );
-      } else {
-        state = state.copyWith(isLoading: false);
-      }
+      final userMap = Map<String, dynamic>.from(userJson as Map);
+      final profileMap = Map<String, dynamic>.from(profileJson as Map);
+
+      final name = profileMap['name']?.toString() ?? userMap['name']?.toString() ?? 'User';
+      final avatarLetter = name.isNotEmpty ? name[0].toUpperCase() : 'U';
+
+      state = state.copyWith(
+        name: name,
+        avatarLetter: avatarLetter,
+        readingGoal: parseReadingGoal(
+          profileMap['career_slug']?.toString() ?? userMap['reading_goal']?.toString() ?? 'ai_engineer',
+        ),
+        readingLevel: parseReadingLevel(
+          profileMap['skill_level']?.toString() ?? userMap['reading_level']?.toString() ?? 'intermediate',
+        ),
+        streak: (profileMap['streak'] as num?)?.toInt() ?? (userMap['streak'] as num?)?.toInt() ?? 0,
+        booksCompleted: (userMap['books_completed'] as num?)?.toInt() ?? 0,
+        booksSaved: (userMap['books_saved'] as num?)?.toInt() ?? 0,
+        language: profileMap['preferred_language']?.toString() ?? 'English',
+        isLoading: false,
+      );
+    } on ApiException catch (e) {
+      state = state.copyWith(isLoading: false, errorMessage: e.message);
     } catch (_) {
-      state = state.copyWith(isLoading: false);
+      state = state.copyWith(isLoading: false, errorMessage: 'Failed to load profile.');
     }
   }
 
@@ -153,34 +138,29 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
     required Set<String> favoriteGenres,
     required String avatarLetter,
   }) async {
+    state = state.copyWith(isLoading: true, clearError: true);
     try {
-      state = state.copyWith(isLoading: true);
       final updateData = {
         'name': name,
-        'reading_goal': _goalToString(readingGoal),
-        'avatar_letter': avatarLetter,
-        'favorite_genres': favoriteGenres.join(','),
+        'career_slug': readingGoalToSlug(readingGoal),
+        'skill_level': readingLevelToApi(state.readingLevel),
+        'preferred_language': state.language,
       };
 
-      final result = await apiClient.put('/profile/update', body: updateData);
-      if (result != null) {
-        final String genresStr = result['favorite_genres'] ?? '';
-        final genresSet = genresStr.isEmpty 
-            ? <String>{} 
-            : genresStr.split(',').map((g) => g.trim()).toSet();
+      final result = await apiClient.put(ApiConstants.profileUpdate, body: updateData);
+      final resultMap = Map<String, dynamic>.from(result as Map);
 
-        state = state.copyWith(
-          name: result['name'] ?? name,
-          avatarLetter: result['avatar_letter'] ?? avatarLetter,
-          readingGoal: _parseGoal(result['reading_goal'] ?? 'selfGrowth'),
-          favoriteGenres: genresSet,
-          isLoading: false,
-        );
-      } else {
-        state = state.copyWith(isLoading: false);
-      }
+      state = state.copyWith(
+        name: resultMap['name']?.toString() ?? name,
+        avatarLetter: avatarLetter.isNotEmpty ? avatarLetter : name[0].toUpperCase(),
+        readingGoal: parseReadingGoal(resultMap['career_slug']?.toString() ?? readingGoalToSlug(readingGoal)),
+        favoriteGenres: favoriteGenres,
+        isLoading: false,
+      );
+    } on ApiException catch (e) {
+      state = state.copyWith(isLoading: false, errorMessage: e.message);
     } catch (_) {
-      state = state.copyWith(isLoading: false);
+      state = state.copyWith(isLoading: false, errorMessage: 'Failed to update profile.');
     }
   }
 

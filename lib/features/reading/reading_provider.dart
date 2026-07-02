@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/book_model.dart';
-import '../../core/services/api_client.dart';
 import '../library/library_provider.dart';
 
 // ── Models ─────────────────────────────────────────────────────────────────
@@ -166,27 +166,14 @@ class ReadingSessionNotifier extends StateNotifier<ReadingSessionState> {
 
   // Restore reading progress from API
   Future<void> loadProgress() async {
-    try {
-      final progressJson = await apiClient.get('/reading/progress/${state.book.id}');
-      if (progressJson != null) {
-        state = state.copyWith(
-          currentChapterIndex: progressJson['current_chapter_index'] ?? 0,
-          activeReadingSeconds: progressJson['active_reading_seconds'] ?? 0,
-          isProgressLoading: false,
-        );
-      } else {
-        state = state.copyWith(isProgressLoading: false);
-      }
-    } catch (_) {
-      // If not started yet, create progress on backend
-      try {
-        await apiClient.post('/reading/progress', body: {
-          'book_id': state.book.id,
-          'read_pages': 0,
-        });
-      } catch (_) {}
-      state = state.copyWith(isProgressLoading: false);
-    }
+    final prefs = await SharedPreferences.getInstance();
+    final chapterIndex = prefs.getInt('reading_chapter_${state.book.id}') ?? 0;
+    final seconds = prefs.getInt('reading_seconds_${state.book.id}') ?? 0;
+    state = state.copyWith(
+      currentChapterIndex: chapterIndex,
+      activeReadingSeconds: seconds,
+      isProgressLoading: false,
+    );
   }
 
   void incrementTimer() {
@@ -200,19 +187,13 @@ class ReadingSessionNotifier extends StateNotifier<ReadingSessionState> {
     if (index >= 0 && index < totalChapters) {
       state = state.copyWith(currentChapterIndex: index);
 
-      // Sync active chapter index to backend
-      try {
-        await apiClient.post('/reading/progress/chapter', body: {
-          'book_id': bookId,
-          'current_chapter_index': index,
-        });
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('reading_chapter_$bookId', index);
 
-        // Sync pages progress based on chapter percentage
-        final fraction = (index + 1) / totalChapters;
-        final pagesCompleted = (state.book.totalPages * fraction).round().clamp(0, state.book.totalPages);
-        
-        await ref.read(libraryProvider.notifier).updateProgress(bookId, pagesCompleted);
-      } catch (_) {}
+      final fraction = (index + 1) / totalChapters;
+      final pagesCompleted =
+          (state.book.totalPages * fraction).round().clamp(0, state.book.totalPages);
+      await ref.read(libraryProvider.notifier).updateProgress(bookId, pagesCompleted);
     }
   }
 

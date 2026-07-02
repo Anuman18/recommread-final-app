@@ -1,22 +1,26 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../core/constants/api_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/services/api_client.dart';
+import '../../core/utils/career_utils.dart';
 import '../../models/book_model.dart';
+import '../../features/profile/profile_provider.dart';
 import '../../core/widgets/animated_button.dart';
 import 'widgets/search_empty_state.dart';
 import 'widgets/search_result_tile.dart';
 
-class SearchScreen extends StatefulWidget {
+class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
 
   @override
-  State<SearchScreen> createState() => _SearchScreenState();
+  ConsumerState<SearchScreen> createState() => _SearchScreenState();
 }
 
-class _SearchScreenState extends State<SearchScreen>
+class _SearchScreenState extends ConsumerState<SearchScreen>
     with SingleTickerProviderStateMixin {
   final TextEditingController _queryCtrl = TextEditingController();
   final FocusNode _focusNode = FocusNode();
@@ -82,20 +86,36 @@ class _SearchScreenState extends State<SearchScreen>
 
     _debounce = Timer(const Duration(milliseconds: 300), () async {
       try {
-        final resultsJson = await apiClient.get('/books/search?query=$q');
-        final fetchedBooks = (resultsJson as List)
-            .map((b) => Book.fromJson(Map<String, dynamic>.from(b)))
+        final careerSlug = readingGoalToSlug(ref.read(profileProvider).readingGoal);
+        final encodedQuery = Uri.encodeComponent(q);
+        final resultsJson = await apiClient.get(
+          '${ApiConstants.aggregationSearch}?career=$careerSlug&query=$encodedQuery',
+        );
+        final results = (resultsJson['results'] as List? ?? [])
+            .asMap()
+            .entries
+            .map((e) => Book.fromSearchResult(
+                  Map<String, dynamic>.from(e.value),
+                  index: e.key,
+                ))
             .toList();
         if (mounted) {
           setState(() {
-            _results = fetchedBooks;
+            _results = results;
+            _isSearchLoading = false;
+          });
+        }
+      } on ApiException catch (e) {
+        if (mounted) {
+          setState(() {
+            _searchError = e.message;
             _isSearchLoading = false;
           });
         }
       } catch (e) {
         if (mounted) {
           setState(() {
-            _searchError = e.toString();
+            _searchError = 'Search failed. Please try again.';
             _isSearchLoading = false;
           });
         }
