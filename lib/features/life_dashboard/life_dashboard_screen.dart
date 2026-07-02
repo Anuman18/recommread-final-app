@@ -211,6 +211,8 @@ class _LifeDashboardScreenState extends ConsumerState<LifeDashboardScreen>
     const MissionCenterCard(),
     const SizedBox(height: 20),
     const _ProjectTracksBanner(),
+    const SizedBox(height: 20),
+    const _CodingPracticeBanner(),
   ];
 
   List<Widget> _growthTab() => [
@@ -440,6 +442,85 @@ class _ProjectTracksBanner extends StatelessWidget {
             const Icon(
               Icons.arrow_forward_ios_rounded,
               color: AppColors.gold,
+              size: 14,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CodingPracticeBanner extends StatelessWidget {
+  const _CodingPracticeBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.heavyImpact();
+        context.push('/coding-practice');
+      },
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF221326), Color(0xFF120914)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFFAB47BC).withValues(alpha: 0.3)),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFAB47BC).withValues(alpha: 0.08),
+              blurRadius: 16,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: const Color(0xFFAB47BC).withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: const Center(
+                child: Text('🧩', style: TextStyle(fontSize: 24)),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Coding Practice',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.textPrimaryDark,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Solve quick algorithmic challenges & track leaderboard rankings.',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: AppColors.textSecondaryDark,
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(
+              Icons.arrow_forward_ios_rounded,
+              color: Color(0xFFAB47BC),
               size: 14,
             ),
           ],

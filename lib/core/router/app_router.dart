@@ -26,6 +26,10 @@ import '../../features/projects/projects_provider.dart';
 import '../../features/projects/projects_screen.dart';
 import '../../features/projects/project_details_screen.dart';
 import '../../features/projects/project_mentor_chat_screen.dart';
+import '../../features/coding_practice/coding_practice_provider.dart';
+import '../../features/coding_practice/coding_practice_screen.dart';
+import '../../features/coding_practice/topic_questions_screen.dart';
+import '../../features/coding_practice/question_details_screen.dart';
 
 /// Custom fade + slide page transition.
 CustomTransitionPage<T> _fadeSlide<T>({
@@ -252,6 +256,57 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               : findProjectById(state.pathParameters['id'] ?? '', list) ??
                   list.first;
           return _slideUp(state: state, child: ProjectMentorChatScreen(project: proj));
+        },
+      ),
+
+      // ── Coding Practice tracks ──────────────────────────────────────────
+      GoRoute(
+        path: '/coding-practice',
+        pageBuilder: (context, state) {
+          return _slideUp(state: state, child: const CodingPracticeScreen());
+        },
+      ),
+      GoRoute(
+        path: '/coding-practice/topic/:id',
+        pageBuilder: (context, state) {
+          final extra = state.extra;
+          final list = ref.read(codingPracticeProvider).topics;
+          final topic = extra is CodingTopic
+              ? extra
+              : list.firstWhere(
+                  (t) => t.id == state.pathParameters['id'],
+                  orElse: () => list.first,
+                );
+          return _slideUp(state: state, child: TopicQuestionsScreen(topic: topic));
+        },
+      ),
+      GoRoute(
+        path: '/coding-practice/question/:id',
+        pageBuilder: (context, state) {
+          final extra = state.extra;
+          final list = ref.read(codingPracticeProvider).questions;
+          final q = extra is CodingQuestion
+              ? extra
+              : findQuestionById(state.pathParameters['id'] ?? '', list) ??
+                  (list.isNotEmpty ? list.first : const CodingQuestion(
+                      id: 'fallback_q',
+                      title: 'Coding Question',
+                      difficulty: 'Easy',
+                      topicId: 'python',
+                      companies: [],
+                      timeMin: 10,
+                      xpReward: 100,
+                      coinsReward: 10,
+                      hints: [],
+                      problemStatement: '',
+                      examples: [],
+                      constraints: [],
+                      expectedOutput: '',
+                      editorial: '',
+                      docUrl: '',
+                      videoUrl: '',
+                    ));
+          return _slideUp(state: state, child: QuestionDetailsScreen(question: q));
         },
       ),
       // ── Reading View (top-level push, no shell) ───────────────────────
