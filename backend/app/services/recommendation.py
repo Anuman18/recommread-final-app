@@ -140,6 +140,10 @@ class RecommendationService:
         # Query all learning resources for career
         all_res = db.query(LearningResource).filter(LearningResource.career_slug == career).all()
         
+        # Single query to pre-fetch all user resource progress logs (prevents N+1 query bottleneck)
+        user_prog = db.query(UserResourceProgress).filter(UserResourceProgress.user_id == user_id).all()
+        prog_map = {p.resource_id: p for p in user_prog}
+        
         # Sort so resources that match user weak skills are positioned first
         def score_resource(r: LearningResource) -> int:
             score = 0
@@ -149,10 +153,7 @@ class RecommendationService:
                     if s in weak:
                         score += 5
             # penalize completed items
-            prog = db.query(UserResourceProgress).filter(
-                UserResourceProgress.user_id == user_id,
-                UserResourceProgress.resource_id == r.id
-            ).first()
+            prog = prog_map.get(r.id)
             if prog and prog.is_completed:
                 score -= 10
             return score
@@ -161,10 +162,7 @@ class RecommendationService:
         
         response = []
         for r in all_res:
-            prog = db.query(UserResourceProgress).filter(
-                UserResourceProgress.user_id == user_id,
-                UserResourceProgress.resource_id == r.id
-            ).first()
+            prog = prog_map.get(r.id)
             response.append({
                 "id": str(r.id),
                 "title": r.title,
@@ -224,23 +222,25 @@ class RecommendationService:
         # Fetch topics for career
         topics = db.query(Topic).filter(Topic.career_slug == career).all()
         topic_ids = [t.id for t in topics]
+        topics_map = {t.id: t for t in topics}
         
         # Query matching questions
         questions = db.query(CodingQuestion).filter(CodingQuestion.topic_id.in_(topic_ids)).all()
         
+        # Single query to pre-fetch all user question progress logs (prevents N+1 query bottleneck)
+        user_q_prog = db.query(UserQuestionProgress).filter(UserQuestionProgress.user_id == user_id).all()
+        q_prog_map = {qp.question_id: qp for qp in user_q_prog}
+        
         # Reorder so questions whose topic or title matches a weak skill appear first
         def score_question(q: CodingQuestion) -> int:
             score = 0
-            topic = db.query(Topic).filter(Topic.id == q.topic_id).first()
+            topic = topics_map.get(q.topic_id)
             if topic and topic.name in weak:
                 score += 8
             # Adjust to user level
             if q.difficulty.lower() == profile.skill_level.lower():
                 score += 4
-            prog = db.query(UserQuestionProgress).filter(
-                UserQuestionProgress.user_id == user_id,
-                UserQuestionProgress.question_id == q.id
-            ).first()
+            prog = q_prog_map.get(q.id)
             if prog and prog.status == "solved":
                 score -= 15
             return score
@@ -249,10 +249,7 @@ class RecommendationService:
         
         response = []
         for q in questions:
-            prog = db.query(UserQuestionProgress).filter(
-                UserQuestionProgress.user_id == user_id,
-                UserQuestionProgress.question_id == q.id
-            ).first()
+            prog = q_prog_map.get(q.id)
             response.append({
                 "id": q.id,
                 "title": q.title,
