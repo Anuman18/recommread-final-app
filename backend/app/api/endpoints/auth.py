@@ -24,7 +24,7 @@ def signup(user_in: UserCreate, db: Session = Depends(get_db)):
         )
     
     try:
-        # Create user
+        # Atomic Transaction block: Creates User, Profile, and Settings. Rolls back completely on failure.
         hashed_password = get_password_hash(user_in.password)
         user = User(email=user_in.email, hashed_password=hashed_password)
         db.add(user)
