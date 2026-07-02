@@ -381,7 +381,7 @@ class _InterviewDashboardScreenState extends ConsumerState<InterviewDashboardScr
           ),
           child: Row(
             children: [
-              Text('🎤', style: const TextStyle(fontSize: 18)),
+              const Text('🎤', style: TextStyle(fontSize: 18)),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(

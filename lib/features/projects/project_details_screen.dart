@@ -629,7 +629,7 @@ class _ProjectDetailsScreenState extends ConsumerState<ProjectDetailsScreen>
                       ],
                     ),
                   ),
-                  Icon(Icons.arrow_forward_ios_rounded, size: 12, color: AppColors.textTertiaryDark),
+                  const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: AppColors.textTertiaryDark),
                 ],
               ),
             ),

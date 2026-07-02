@@ -188,9 +188,9 @@ class _ProjectMentorChatScreenState extends ConsumerState<ProjectMentorChatScree
   Widget _buildBottomBar() {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 36),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppColors.darkCard,
-        border: const Border(top: BorderSide(color: AppColors.darkBorder, width: 0.5)),
+        border: Border(top: BorderSide(color: AppColors.darkBorder, width: 0.5)),
       ),
       child: Row(
         children: [

@@ -28,7 +28,7 @@ class _QuestionDetailsScreenState extends ConsumerState<QuestionDetailsScreen>
 
   // Simulation Metrics
   int _passedTestCases = 0;
-  int _totalTestCases = 5;
+  final int _totalTestCases = 5;
   int _execTimeMs = 12;
   double _memMb = 1.1;
 
@@ -483,7 +483,7 @@ class _QuestionDetailsScreenState extends ConsumerState<QuestionDetailsScreen>
             Expanded(
               child: Text(title, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.textPrimaryDark)),
             ),
-            Icon(Icons.arrow_forward_ios_rounded, size: 12, color: AppColors.textTertiaryDark),
+            const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: AppColors.textTertiaryDark),
           ],
         ),
       ),

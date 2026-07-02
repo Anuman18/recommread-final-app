@@ -517,7 +517,7 @@ class _BookDetailsScreenState extends ConsumerState<BookDetailsScreen>
                                                 overflow: TextOverflow.ellipsis,
                                               ),
                                             ),
-                                            Icon(Icons.arrow_forward_ios_rounded,
+                                            const Icon(Icons.arrow_forward_ios_rounded,
                                                 size: 11, color: AppColors.textTertiaryDark),
                                           ],
                                         ),

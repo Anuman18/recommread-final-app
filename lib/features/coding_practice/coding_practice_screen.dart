@@ -454,7 +454,7 @@ class _CodingPracticeScreenState extends ConsumerState<CodingPracticeScreen> {
                 child: Row(
                   children: [
                     // Rank badge
-                    Container(
+                    SizedBox(
                       width: 24,
                       child: Text(
                         '#${entry.rank}',
