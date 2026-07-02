@@ -43,27 +43,11 @@ def signup(user_in: UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=Token)
 def login(
-    user_in: Optional[UserLogin] = None,
-    form_data: Optional[OAuth2PasswordRequestForm] = Depends(None),
+    user_in: UserLogin,
     db: Session = Depends(get_db)
 ):
-    # Support both JSON login and Form-data OAuth2 login
-    email = ""
-    password = ""
-    if form_data:
-        email = form_data.username
-        password = form_data.password
-    elif user_in:
-        email = user_in.email
-        password = user_in.password
-    else:
-        raise HTTPException(
-            status_code=400,
-            detail="Login credentials must be provided as JSON or Form parameters",
-        )
-
-    user = db.query(User).filter(User.email == email).first()
-    if not user or not verify_password(password, user.hashed_password):
+    user = db.query(User).filter(User.email == user_in.email).first()
+    if not user or not verify_password(user_in.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Incorrect email or password",
