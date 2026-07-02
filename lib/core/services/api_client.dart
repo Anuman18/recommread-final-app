@@ -17,9 +17,11 @@ class ApiException implements Exception {
 
 class ApiClient {
   // Use 10.0.2.2 for Android emulator, 127.0.0.1 for iOS simulator/macOS/web
-  static final String baseUrl = kIsWeb
-      ? 'http://127.0.0.1:8000'
-      : (Platform.isAndroid ? 'http://10.0.2.2:8000' : 'http://127.0.0.1:8000');
+static final String baseUrl = kIsWeb
+    ? 'http://127.0.0.1:8000'
+    : (Platform.isAndroid
+        ? 'http://10.0.2.2:8000'
+        : 'http://192.168.1.7:8000');
 
   static const String _tokenKey = 'jwt_token';
   String? _token;
