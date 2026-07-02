@@ -213,6 +213,8 @@ class _LifeDashboardScreenState extends ConsumerState<LifeDashboardScreen>
     const _ProjectTracksBanner(),
     const SizedBox(height: 20),
     const _CodingPracticeBanner(),
+    const SizedBox(height: 20),
+    const _AiInterviewBanner(),
   ];
 
   List<Widget> _growthTab() => [
@@ -521,6 +523,85 @@ class _CodingPracticeBanner extends StatelessWidget {
             const Icon(
               Icons.arrow_forward_ios_rounded,
               color: Color(0xFFAB47BC),
+              size: 14,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AiInterviewBanner extends StatelessWidget {
+  const _AiInterviewBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.heavyImpact();
+        context.push('/ai-interview');
+      },
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF13222B), Color(0xFF091217)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFF26A69A).withValues(alpha: 0.3)),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF26A69A).withValues(alpha: 0.08),
+              blurRadius: 16,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: const Color(0xFF26A69A).withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: const Center(
+                child: Text('🎤', style: TextStyle(fontSize: 24)),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'AI Interview Rounds',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.textPrimaryDark,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Practice behavioral, technical, and HR simulation questions.',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: AppColors.textSecondaryDark,
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(
+              Icons.arrow_forward_ios_rounded,
+              color: Color(0xFF26A69A),
               size: 14,
             ),
           ],

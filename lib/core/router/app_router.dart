@@ -30,6 +30,10 @@ import '../../features/coding_practice/coding_practice_provider.dart';
 import '../../features/coding_practice/coding_practice_screen.dart';
 import '../../features/coding_practice/topic_questions_screen.dart';
 import '../../features/coding_practice/question_details_screen.dart';
+import '../../features/ai_interview/interview_provider.dart';
+import '../../features/ai_interview/interview_dashboard_screen.dart';
+import '../../features/ai_interview/active_interview_screen.dart';
+import '../../features/ai_interview/interview_report_screen.dart';
 
 /// Custom fade + slide page transition.
 CustomTransitionPage<T> _fadeSlide<T>({
@@ -307,6 +311,34 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                       videoUrl: '',
                     ));
           return _slideUp(state: state, child: QuestionDetailsScreen(question: q));
+        },
+      ),
+
+      // ── AI Interview tracks ─────────────────────────────────────────────
+      GoRoute(
+        path: '/ai-interview',
+        pageBuilder: (context, state) {
+          return _slideUp(state: state, child: const InterviewDashboardScreen());
+        },
+      ),
+      GoRoute(
+        path: '/ai-interview/active',
+        pageBuilder: (context, state) {
+          final extra = state.extra;
+          final list = ref.read(interviewProvider).interviewTypes;
+          final type = extra is InterviewType
+              ? extra
+              : list.firstWhere(
+                  (t) => t.id == state.pathParameters['id'],
+                  orElse: () => list.first,
+                );
+          return _slideUp(state: state, child: ActiveInterviewScreen(type: type));
+        },
+      ),
+      GoRoute(
+        path: '/ai-interview/report',
+        pageBuilder: (context, state) {
+          return _slideUp(state: state, child: const InterviewReportScreen());
         },
       ),
       // ── Reading View (top-level push, no shell) ───────────────────────
