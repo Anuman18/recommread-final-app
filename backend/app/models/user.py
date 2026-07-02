@@ -65,6 +65,10 @@ class User(Base):
             return self.profile.name[0].upper()
         return "AR"
 
+    @property
+    def onboarding_completed(self) -> bool:
+        return self.profile.onboarding_completed if self.profile else False
+
 
 class Profile(Base):
     __tablename__ = "profiles"
@@ -81,6 +85,7 @@ class Profile(Base):
     career_slug = Column(String, default="ai_engineer")
     skill_level = Column(String, default="Beginner")
     readiness_score = Column(Float, default=40.0)
+    onboarding_completed = Column(Boolean, default=False)
 
     user = relationship("User", back_populates="profile")
 

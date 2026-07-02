@@ -13,6 +13,15 @@ async def lifespan(app: FastAPI):
     print("Initializing database tables...")
     Base.metadata.create_all(bind=engine)
     
+    # Verify/create onboarding_completed column in profiles table
+    with engine.begin() as connection:
+        try:
+            from sqlalchemy import text
+            connection.execute(text("ALTER TABLE profiles ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT FALSE;"))
+            print("Successfully verified onboarding_completed column in profiles table.")
+        except Exception as e:
+            print(f"Error checking/adding onboarding_completed column: {e}")
+    
     # Auto-seed mock data if empty
     db = SessionLocal()
     try:

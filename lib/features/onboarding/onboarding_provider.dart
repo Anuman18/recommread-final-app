@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/services/api_client.dart';
+import '../../core/utils/career_utils.dart';
 
 // ── Career Goal (Target Identity) ────────────────────────────────────────────
 
@@ -234,10 +236,70 @@ class OnboardingState {
 // ── Notifier ───────────────────────────────────────────────────────────────
 
 class OnboardingNotifier extends StateNotifier<OnboardingState> {
-  OnboardingNotifier() : super(const OnboardingState());
+  OnboardingNotifier() : super(const OnboardingState()) {
+    loadFromBackend();
+  }
+
+  DailyTime _minToDailyTime(int mins) {
+    if (mins <= 30) return DailyTime.min30;
+    if (mins <= 60) return DailyTime.min60;
+    if (mins <= 120) return DailyTime.min120;
+    return DailyTime.min240plus;
+  }
+
+  PreferredLanguage _parseLanguage(String lang) {
+    switch (lang.toLowerCase()) {
+      case 'english': return PreferredLanguage.english;
+      case 'hindi': return PreferredLanguage.hindi;
+      default: return PreferredLanguage.both;
+    }
+  }
+
+  int _dailyTimeToMin(DailyTime time) {
+    switch (time) {
+      case DailyTime.min30: return 30;
+      case DailyTime.min60: return 60;
+      case DailyTime.min120: return 120;
+      case DailyTime.min240plus: return 240;
+    }
+  }
+
+  Future<void> loadFromBackend() async {
+    try {
+      final profileJson = await apiClient.get('/api/v1/profile');
+      final map = Map<String, dynamic>.from(profileJson as Map);
+      
+      final goalStr = map['career_slug']?.toString();
+      final levelStr = map['skill_level']?.toString();
+      final dailyTimeMin = (map['daily_learning_time_min'] as num?)?.toInt();
+      final langStr = map['preferred_language']?.toString();
+      
+      state = OnboardingState(
+        goal: goalStr != null ? parseReadingGoal(goalStr) : null,
+        level: levelStr != null ? parseReadingLevel(levelStr) : null,
+        dailyTime: dailyTimeMin != null ? _minToDailyTime(dailyTimeMin) : null,
+        language: langStr != null ? _parseLanguage(langStr) : null,
+      );
+    } catch (_) {
+      // Local state is preserved
+    }
+  }
+
+  Future<void> _saveToBackend() async {
+    try {
+      final updateData = {
+        'career_slug': state.goal != null ? readingGoalToSlug(state.goal!) : null,
+        'skill_level': state.level != null ? readingLevelToApi(state.level!) : null,
+        'daily_learning_time_min': state.dailyTime != null ? _dailyTimeToMin(state.dailyTime!) : null,
+        'preferred_language': state.language?.label,
+      };
+      await apiClient.put('/api/v1/profile/update', body: updateData);
+    } catch (_) {}
+  }
 
   void setGoal(ReadingGoal goal) {
     state = state.copyWith(goal: goal);
+    _saveToBackend();
   }
 
   void toggleGenre(String genre) {
@@ -252,31 +314,32 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
 
   void setLevel(ReadingLevel level) {
     state = state.copyWith(level: level);
+    _saveToBackend();
   }
 
   void setDailyTime(DailyTime time) {
     state = state.copyWith(dailyTime: time);
+    _saveToBackend();
   }
 
   void setLanguage(PreferredLanguage lang) {
     state = state.copyWith(language: lang);
+    _saveToBackend();
   }
 
   Future<void> saveAndComplete() async {
+    try {
+      final updateData = {
+        'career_slug': state.goal != null ? readingGoalToSlug(state.goal!) : null,
+        'skill_level': state.level != null ? readingLevelToApi(state.level!) : null,
+        'daily_learning_time_min': state.dailyTime != null ? _dailyTimeToMin(state.dailyTime!) : null,
+        'preferred_language': state.language?.label,
+        'onboarding_completed': true,
+      };
+      await apiClient.put('/api/v1/profile/update', body: updateData);
+    } catch (_) {}
+
     final prefs = await SharedPreferences.getInstance();
-    if (state.goal != null) {
-      await prefs.setString('onboarding_goal', state.goal!.name);
-    }
-    if (state.level != null) {
-      await prefs.setString('onboarding_level', state.level!.name);
-    }
-    if (state.dailyTime != null) {
-      await prefs.setString('onboarding_time', state.dailyTime!.name);
-    }
-    if (state.language != null) {
-      await prefs.setString('onboarding_language', state.language!.name);
-    }
-    await prefs.setStringList('onboarding_genres', state.genres.toList());
     await prefs.setBool('onboarding_complete', true);
   }
 }

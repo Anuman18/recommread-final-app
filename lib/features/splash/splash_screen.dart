@@ -81,10 +81,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     await Future.delayed(const Duration(milliseconds: 1000));
     if (mounted) {
       if (loggedIn) {
-        if (!hasSeenWelcome) {
-          context.go('/beta-welcome');
+        final user = ref.read(authProvider).user;
+        if (user != null && user.onboardingCompleted) {
+          if (!hasSeenWelcome) {
+            context.go('/beta-welcome');
+          } else {
+            context.go('/home');
+          }
         } else {
-          context.go('/home');
+          context.go('/onboarding');
         }
       } else {
         context.go('/login');

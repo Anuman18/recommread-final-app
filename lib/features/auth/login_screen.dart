@@ -77,7 +77,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     if (mounted) {
       setState(() => _isLoading = false);
       if (success) {
-        context.go('/home');
+        final user = ref.read(authProvider).user;
+        if (user != null && user.onboardingCompleted) {
+          context.go('/home');
+        } else {
+          context.go('/onboarding');
+        }
       } else {
         final error = ref.read(authProvider).errorMessage ?? 'Login failed';
         ScaffoldMessenger.of(context).showSnackBar(

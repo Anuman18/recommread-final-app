@@ -13,6 +13,7 @@ class AuthUser {
   final int booksSaved;
   final String favoriteGenres;
   final String avatarLetter;
+  final bool onboardingCompleted;
 
   AuthUser({
     required this.id,
@@ -25,6 +26,7 @@ class AuthUser {
     required this.booksSaved,
     required this.favoriteGenres,
     required this.avatarLetter,
+    required this.onboardingCompleted,
   });
 
   factory AuthUser.fromJson(Map<String, dynamic> json) {
@@ -39,6 +41,7 @@ class AuthUser {
       booksSaved: json['books_saved'] ?? 0,
       favoriteGenres: json['favorite_genres'] ?? '',
       avatarLetter: json['avatar_letter'] ?? 'U',
+      onboardingCompleted: json['onboarding_completed'] ?? false,
     );
   }
 }
