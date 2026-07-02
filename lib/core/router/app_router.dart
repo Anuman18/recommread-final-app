@@ -22,6 +22,10 @@ import '../../features/ai_learning_engine/ai_revision_center_screen.dart';
 import '../../features/ai_learning_engine/learning_analytics_screen.dart';
 import '../../models/book_model.dart';
 import '../../data/mock_data.dart';
+import '../../features/projects/projects_provider.dart';
+import '../../features/projects/projects_screen.dart';
+import '../../features/projects/project_details_screen.dart';
+import '../../features/projects/project_mentor_chat_screen.dart';
 
 /// Custom fade + slide page transition.
 CustomTransitionPage<T> _fadeSlide<T>({
@@ -197,6 +201,57 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                           url: 'https://github.com',
                         ));
           return _slideUp(state: state, child: BookDetailsScreen(resource: resource));
+        },
+      ),
+
+      // ── Project tracks ──────────────────────────────────────────────────
+      GoRoute(
+        path: '/projects',
+        pageBuilder: (context, state) {
+          return _slideUp(state: state, child: const ProjectsScreen());
+        },
+      ),
+      GoRoute(
+        path: '/projects/:id',
+        pageBuilder: (context, state) {
+          final extra = state.extra;
+          final list = ref.read(projectsProvider).projects;
+          final proj = extra is Project
+              ? extra
+              : findProjectById(state.pathParameters['id'] ?? '', list) ??
+                  (list.isNotEmpty ? list.first : const Project(
+                      id: 'fallback',
+                      name: 'Project Track',
+                      difficulty: 'Intermediate',
+                      duration: '10 hours',
+                      requiredSkills: [],
+                      xpReward: 500,
+                      coinsReward: 50,
+                      portfolioValue: 'High',
+                      imageGradientStart: '0xFF1A1F3C',
+                      imageGradientEnd: '0xFF0D0F1F',
+                      overview: '',
+                      problemStatement: '',
+                      whatYouWillBuild: '',
+                      techStack: [],
+                      prerequisites: [],
+                      resources: [],
+                      milestones: [],
+                      expectedOutput: '',
+                    ));
+          return _slideUp(state: state, child: ProjectDetailsScreen(project: proj));
+        },
+      ),
+      GoRoute(
+        path: '/projects/:id/mentor',
+        pageBuilder: (context, state) {
+          final extra = state.extra;
+          final list = ref.read(projectsProvider).projects;
+          final proj = extra is Project
+              ? extra
+              : findProjectById(state.pathParameters['id'] ?? '', list) ??
+                  list.first;
+          return _slideUp(state: state, child: ProjectMentorChatScreen(project: proj));
         },
       ),
       // ── Reading View (top-level push, no shell) ───────────────────────

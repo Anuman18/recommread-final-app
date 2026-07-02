@@ -209,6 +209,8 @@ class _LifeDashboardScreenState extends ConsumerState<LifeDashboardScreen>
 
   List<Widget> _missionsTab() => [
     const MissionCenterCard(),
+    const SizedBox(height: 20),
+    const _ProjectTracksBanner(),
   ];
 
   List<Widget> _growthTab() => [
@@ -363,6 +365,85 @@ class _LifeDashboardScreenState extends ConsumerState<LifeDashboardScreen>
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ProjectTracksBanner extends StatelessWidget {
+  const _ProjectTracksBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.heavyImpact();
+        context.push('/projects');
+      },
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF1A1D36), Color(0xFF0D0F1F)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.gold.withValues(alpha: 0.3)),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.gold.withValues(alpha: 0.08),
+              blurRadius: 16,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: AppColors.gold.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: const Center(
+                child: Text('💻', style: TextStyle(fontSize: 24)),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Project Tracks',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.textPrimaryDark,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Build real products & verify your skills with AI Mentors.',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: AppColors.textSecondaryDark,
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(
+              Icons.arrow_forward_ios_rounded,
+              color: AppColors.gold,
+              size: 14,
+            ),
+          ],
+        ),
       ),
     );
   }
