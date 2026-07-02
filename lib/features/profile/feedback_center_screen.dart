@@ -326,7 +326,7 @@ class _FeedbackCenterScreenState extends State<FeedbackCenterScreen> {
                           ),
                           Switch(
                             value: _mockScreenshotEnabled,
-                            activeColor: AppColors.gold,
+                            activeThumbColor: AppColors.gold,
                             activeTrackColor: AppColors.gold.withValues(alpha: 0.3),
                             inactiveThumbColor: AppColors.textTertiaryDark,
                             inactiveTrackColor: AppColors.darkCard,

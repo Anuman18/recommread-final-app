@@ -598,8 +598,8 @@ class CodingPracticeNotifier extends StateNotifier<CodingPracticeState> {
     final prefs = await SharedPreferences.getInstance();
     
     // Award bonus rewards
-    final bonusXp = 250;
-    final bonusCoins = 30;
+    const bonusXp = 250;
+    const bonusCoins = 30;
     
     final nextXp = state.totalXpEarned + bonusXp;
     final nextCoins = state.totalCoinsEarned + bonusCoins;
