@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/services/api_client.dart';
@@ -180,6 +181,72 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
     loadLibraryData();
   }
 
+  Book resourceToBook(LearningResource r) {
+    final genre = r.type;
+    final tags = r.skills;
+    
+    final val = r.id.hashCode % 5;
+    List<Color> colors;
+    switch (val) {
+      case 0: colors = [const Color(0xFF1565C0), const Color(0xFF0D47A1)]; break;
+      case 1: colors = [const Color(0xFFAD1457), const Color(0xFF6A1B29)]; break;
+      case 2: colors = [const Color(0xFF2E7D32), const Color(0xFF1B5E20)]; break;
+      case 3: colors = [const Color(0xFFEF6C00), const Color(0xFFE65100)]; break;
+      default: colors = [const Color(0xFF6A1B9A), const Color(0xFF4A148C)]; break;
+    }
+    
+    int totalPages = r.timeMin * 2;
+    if (totalPages <= 0) totalPages = 100;
+    int readPages = 0;
+    if (r.completionStatus == 'completed') {
+      readPages = totalPages;
+    } else if (r.completionStatus == 'in_progress') {
+      readPages = (totalPages * 0.4).toInt();
+    }
+
+    return Book(
+      id: r.id,
+      title: r.title,
+      author: r.provider,
+      genre: genre,
+      rating: 4.5,
+      description: r.description.isNotEmpty ? r.description : r.aiReason,
+      coverColors: colors,
+      coverEmoji: r.icon,
+      totalPages: totalPages,
+      readPages: readPages,
+      tags: tags,
+    );
+  }
+
+  void _updateDerivedLists(List<LearningResource> resources) {
+    final continueReadingList = resources
+        .where((r) => r.completionStatus == 'in_progress')
+        .map((r) => resourceToBook(r))
+        .toList();
+
+    final savedList = resources
+        .where((r) => r.isBookmarked)
+        .map((r) => resourceToBook(r))
+        .toList();
+
+    final completedList = resources
+        .where((r) => r.completionStatus == 'completed')
+        .map((r) => CompletedBook(
+              book: resourceToBook(r),
+              completedDate: 'Recent',
+              userRating: 4.5,
+            ))
+        .toList();
+
+    state = state.copyWith(
+      resources: resources,
+      continueReading: continueReadingList,
+      saved: savedList,
+      completed: completedList,
+    );
+  }
+
   Future<void> loadLibraryData() async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     final careerSlug = readingGoalToSlug(_ref.read(profileProvider).readingGoal);
@@ -190,10 +257,8 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
           .map((r) => LearningResource.fromJson(Map<String, dynamic>.from(r)))
           .toList();
 
-      state = state.copyWith(
-        resources: fetchedList,
-        isLoading: false,
-      );
+      _updateDerivedLists(fetchedList);
+      state = state.copyWith(isLoading: false);
     } on ApiException catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: e.message);
     } catch (_) {
@@ -212,7 +277,7 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
       final updatedList = state.resources.map((r) {
         return r.id == resourceId ? updated : r;
       }).toList();
-      state = state.copyWith(resources: updatedList);
+      _updateDerivedLists(updatedList);
     } on ApiException catch (e) {
       state = state.copyWith(errorMessage: e.message);
     }
@@ -228,7 +293,7 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
             ? updated.copyWith(completionStatus: 'completed')
             : r;
       }).toList();
-      state = state.copyWith(resources: updatedList);
+      _updateDerivedLists(updatedList);
     } on ApiException catch (e) {
       state = state.copyWith(errorMessage: e.message);
     }
