@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/splash/splash_screen.dart';
+import '../../features/splash/beta_welcome_screen.dart';
 import '../../features/auth/login_screen.dart';
 import '../../features/auth/signup_screen.dart';
 import '../../features/onboarding/onboarding_screen.dart';
@@ -110,6 +111,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           context: context,
           state: state,
           child: const SplashScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/beta-welcome',
+        pageBuilder: (context, state) => _fadeSlide(
+          context: context,
+          state: state,
+          child: const BetaWelcomeScreen(),
         ),
       ),
       GoRoute(

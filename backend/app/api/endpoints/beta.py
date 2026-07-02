@@ -55,3 +55,11 @@ def get_admin_dashboard(
     if not current_user.is_active:
         raise HTTPException(status_code=403, detail="Not authorized to access admin view")
     return BetaService.get_admin_dashboard(db)
+
+@router.get("/app-version", response_model=Dict[str, Any])
+def get_app_version():
+    return {
+        "version": "1.0.0",
+        "build_number": "42",
+        "stage": "beta"
+    }

@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/animated_button.dart';
 import 'profile_provider.dart';
+import 'feedback_center_screen.dart';
 import '../auth/auth_provider.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -47,20 +48,38 @@ class SettingsScreen extends ConsumerWidget {
                     _buildMenuTile(
                       icon: Icons.shield_outlined,
                       title: 'Privacy Policy',
-                      subtitle: 'How we protect your reading metrics',
-                      onTap: () => _showDialog(context, 'Privacy Policy', 'Your reading statistics, goals, and preferred genres are stored locally on your device. We do not sell or share your data with third parties.'),
+                      subtitle: 'How we protect your learning metrics',
+                      onTap: () => _showDialog(context, 'Privacy Policy', 'Your learning statistics, goals, and preferred paths are securely processed in the cloud database. We do not sell or share your data with third parties.'),
                     ),
                     _buildMenuTile(
-                      icon: Icons.help_outline_rounded,
-                      title: 'Help & Support',
-                      subtitle: 'Submit feedback or contact support',
-                      onTap: () => _showDialog(context, 'Help & Support', 'If you experience any issues with RecommRead, please contact our support team at support@recommread.ai.'),
+                      icon: Icons.gavel_rounded,
+                      title: 'Terms of Service',
+                      subtitle: 'RecommRead user agreement terms',
+                      onTap: () => _showDialog(context, 'Terms of Service', 'By using RecommRead Beta, you agree to submit anonymous learning telemetry events to train recommendation engines. All content is owned by RecommRead.'),
+                    ),
+                    _buildMenuTile(
+                      icon: Icons.feedback_outlined,
+                      title: 'Send Feedback',
+                      subtitle: 'Suggest feature updates or additions',
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => const FeedbackCenterScreen()));
+                      },
+                    ),
+                    _buildMenuTile(
+                      icon: Icons.bug_report_outlined,
+                      title: 'Report Bug',
+                      subtitle: 'Flag crashes or incorrect logic',
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => const FeedbackCenterScreen()));
+                      },
                     ),
                     _buildMenuTile(
                       icon: Icons.info_outline_rounded,
                       title: 'About RecommRead',
                       subtitle: 'Version 1.0.0 (Build 42)',
-                      onTap: () => _showDialog(context, 'About RecommRead', 'RecommRead is a premium, AI-powered reading coach designed to help you build habits, digest chapters efficiently, and structure learning roadmaps.'),
+                      onTap: () => _showDialog(context, 'About RecommRead', 'RecommRead is a premium, AI-powered Career Operating System designed to help you build habits, solve coding practice tasks, and structure dynamic job roadmaps.'),
                     ),
                     const SizedBox(height: 32),
 
