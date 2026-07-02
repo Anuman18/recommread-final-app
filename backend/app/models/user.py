@@ -27,6 +27,37 @@ class User(Base):
     project_progress = relationship("UserProjectProgress", back_populates="user", cascade="all, delete-orphan")
     question_progress = relationship("UserQuestionProgress", back_populates="user", cascade="all, delete-orphan")
 
+    @property
+    def name(self) -> str:
+        return self.profile.name if self.profile else "User"
+
+    @property
+    def reading_goal(self) -> str:
+        return self.profile.career_slug if self.profile else "selfGrowth"
+
+    @property
+    def reading_level(self) -> str:
+        return self.profile.skill_level if self.profile else "intermediate"
+
+    @property
+    def streak(self) -> int:
+        return self.profile.streak if self.profile else 0
+
+    @property
+    def books_completed(self) -> int:
+        return 0
+
+    @property
+    def books_saved(self) -> int:
+        return 0
+
+    @property
+    def favorite_genres(self) -> str:
+        return ""
+
+    @property
+    def avatar_letter(self) -> str:
+        return self.profile.name[0].upper() if (self.profile and self.profile.name) else "AR"
 
 
 class Profile(Base):

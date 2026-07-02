@@ -15,6 +15,14 @@ class UserResponse(BaseModel):
     email: EmailStr
     is_active: bool
     created_at: datetime
+    name: str = "User"
+    reading_goal: str = "selfGrowth"
+    reading_level: str = "intermediate"
+    streak: int = 0
+    books_completed: int = 0
+    books_saved: int = 0
+    favorite_genres: str = ""
+    avatar_letter: str = "AR"
 
     class Config:
         from_attributes = True
