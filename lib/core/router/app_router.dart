@@ -10,6 +10,7 @@ import '../../features/book_details/book_details_screen.dart';
 import '../../navigation/main_shell.dart';
 import '../../home/home_screen.dart';
 import '../../features/library/library_screen.dart';
+import '../../features/library/library_provider.dart';
 import '../../features/ai_coach/ai_coach_screen.dart';
 import '../../features/profile/profile_screen.dart';
 import '../../features/reading/reading_screen.dart';
@@ -173,17 +174,29 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
 
-      // ── Book Details (top-level push, no shell) ───────────────────────
       GoRoute(
         path: '/book/:id',
         pageBuilder: (context, state) {
-          // Prefer the book passed as extra; fall back to mock data lookup.
           final extra = state.extra;
-          final book = extra is Book
+          final resources = ref.read(libraryProvider).resources;
+          final resource = extra is LearningResource
               ? extra
-              : findBookById(state.pathParameters['id'] ?? '') ??
-                  kAllBooks.first;
-          return _slideUp(state: state, child: BookDetailsScreen(book: book));
+              : findResourceById(state.pathParameters['id'] ?? '', resources) ??
+                  (resources.isNotEmpty
+                      ? resources.first
+                      : const LearningResource(
+                          id: 'fallback',
+                          title: 'Learning Resource',
+                          provider: 'AI OS',
+                          type: 'Documentation',
+                          difficulty: 'Beginner',
+                          timeMin: 10,
+                          xpReward: 100,
+                          coinsReward: 10,
+                          skills: [],
+                          url: 'https://github.com',
+                        ));
+          return _slideUp(state: state, child: BookDetailsScreen(resource: resource));
         },
       ),
       // ── Reading View (top-level push, no shell) ───────────────────────
