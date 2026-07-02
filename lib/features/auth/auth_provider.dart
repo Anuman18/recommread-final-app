@@ -86,7 +86,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
 
     try {
-      final userJson = await apiClient.get('/auth/me');
+      final userJson = await apiClient.get('/api/v1/auth/me');
       final user = AuthUser.fromJson(userJson);
       state = AuthState(isAuthenticated: true, isLoading: false, user: user);
       return true;
@@ -102,7 +102,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<bool> login(String email, String password) async {
     state = AuthState(isAuthenticated: false, isLoading: true);
     try {
-      final result = await apiClient.post('/auth/login', body: {
+      final result = await apiClient.post('/api/v1/auth/login', body: {
         'email': email,
         'password': password,
       });
@@ -110,7 +110,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       await apiClient.saveToken(token);
 
       // Fetch user profile
-      final userJson = await apiClient.get('/auth/me');
+      final userJson = await apiClient.get('/api/v1/auth/me');
       final user = AuthUser.fromJson(userJson);
 
       state = AuthState(isAuthenticated: true, isLoading: false, user: user);
@@ -128,7 +128,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<bool> signup(String name, String email, String password) async {
     state = AuthState(isAuthenticated: false, isLoading: true);
     try {
-      await apiClient.post('/auth/signup', body: {
+      await apiClient.post('/api/v1/auth/signup', body: {
         'name': name,
         'email': email,
         'password': password,
