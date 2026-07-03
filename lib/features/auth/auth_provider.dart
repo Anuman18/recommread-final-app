@@ -1,6 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/services/api_client.dart';
+import '../profile/profile_provider.dart';
+import '../profile/xp_provider.dart';
+import '../library/library_provider.dart';
+import '../ai_coach/ai_coach_provider.dart';
+import '../onboarding/onboarding_provider.dart';
+import '../life_dashboard/life_dashboard_provider.dart';
 
 class AuthUser {
   final int id;
@@ -75,11 +82,17 @@ class AuthState {
 }
 
 class AuthNotifier extends StateNotifier<AuthState> {
-  AuthNotifier()
+  final Ref ref;
+
+  AuthNotifier(this.ref)
       : super(AuthState(
           isAuthenticated: false,
           isLoading: false,
-        ));
+        )) {
+    apiClient.onUnauthorized = () {
+      logout();
+    };
+  }
 
   Future<bool> checkAutoLogin() async {
     state = AuthState(isAuthenticated: false, isLoading: true);
@@ -158,10 +171,30 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> logout() async {
     await apiClient.clearToken();
+    
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('onboarding_complete');
+    await prefs.remove('user_coins');
+    
+    // Clear reading progress caches
+    final keys = prefs.getKeys();
+    for (final key in keys) {
+      if (key.startsWith('reading_chapter_') || key.startsWith('reading_seconds_')) {
+        await prefs.remove(key);
+      }
+    }
+
+    ref.invalidate(profileProvider);
+    ref.invalidate(libraryProvider);
+    ref.invalidate(aiCoachProvider);
+    ref.invalidate(onboardingProvider);
+    ref.invalidate(xpProvider);
+    ref.invalidate(lifeDashboardProvider);
+
     state = AuthState(isAuthenticated: false, isLoading: false);
   }
 }
 
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
-  return AuthNotifier();
+  return AuthNotifier(ref);
 });
