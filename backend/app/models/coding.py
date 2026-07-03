@@ -33,6 +33,11 @@ class UserQuestionProgress(Base):
     status = Column(String, default="unsolved") # unsolved, in_progress, solved
     submitted_code = Column(String, nullable=True)
     solved_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
+    attempts = Column(Integer, default=0)
+    runtime_ms = Column(Integer, default=0)
+    memory_mb = Column(Float, default=0.0)
+    language = Column(String, nullable=True)
+    submission_history = Column(JSON, nullable=True) # list of dicts
 
     user = relationship("User", back_populates="question_progress")
 

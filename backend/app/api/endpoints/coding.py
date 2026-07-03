@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
 import random
+from datetime import datetime
 
 from ...core.database import get_db
 from ...models.user import User, Profile
@@ -10,6 +11,7 @@ from ...models.coding import CodingQuestion, UserQuestionProgress
 from ...schemas.coding import CodingQuestionResponse, CodeSubmission, SubmissionResultResponse
 from ...schemas.career import TopicResponse
 from ..deps import get_current_user
+from ...services.coding_execution import CodeExecutionService
 
 router = APIRouter()
 
@@ -57,7 +59,12 @@ def get_questions(
             editorial=q.editorial,
             doc_url=q.doc_url,
             video_url=q.video_url,
-            status=progress.status if progress else "unsolved"
+            status=progress.status if progress else "unsolved",
+            attempts=progress.attempts if progress else 0,
+            runtime_ms=progress.runtime_ms if progress else 0,
+            memory_mb=progress.memory_mb if progress else 0.0,
+            language=progress.language if progress else None,
+            submission_history=progress.submission_history if progress else []
         ))
     return response
 
@@ -72,40 +79,77 @@ def submit_question(
     if not q:
         raise HTTPException(status_code=404, detail="Question not found")
 
-    # Simulate compiler execution
-    passed_all = True
-    passed_test_cases = 5
-    total_test_cases = 5
-    time_ms = random.randint(8, 18)
-    mem_mb = round(1.0 + (random.random() * 0.3), 2)
+    # Real compilation & execution inside sandbox
+    result = CodeExecutionService.execute(id, submission.language, submission.user_code)
+    
+    passed_all = result["passed_all"]
+    passed_test_cases = result["passed_test_cases"]
+    total_test_cases = result["total_test_cases"]
+    time_ms = result["execution_time_ms"]
+    mem_mb = result["memory_usage_mb"]
+    status_str = result["status"]
+    feedback = result["feedback"]
 
     progress = db.query(UserQuestionProgress).filter(
         UserQuestionProgress.user_id == current_user.id,
         UserQuestionProgress.question_id == id
     ).first()
 
-    if not progress:
-        progress = UserQuestionProgress(
-            user_id=current_user.id,
-            question_id=id,
-            status="solved",
-            submitted_code=submission.user_code
-        )
-        db.add(progress)
-    else:
-        progress.status = "solved"
-        progress.submitted_code = submission.user_code
-    
-    db.commit()
+    already_solved = progress and progress.status == "solved"
 
-    # Award rewards
-    profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
-    if profile:
-        profile.xp += q.xp_reward
-        profile.coins += q.coins_reward
-        profile.streak += 1
-        db.add(profile)
+    if submission.is_submit:
+        history_log = {
+            "language": submission.language,
+            "status": status_str,
+            "passed_cases": passed_test_cases,
+            "total_cases": total_test_cases,
+            "runtime_ms": time_ms,
+            "memory_mb": mem_mb,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+        if not progress:
+            progress = UserQuestionProgress(
+                user_id=current_user.id,
+                question_id=id,
+                status="solved" if passed_all else "in_progress",
+                submitted_code=submission.user_code,
+                attempts=1,
+                runtime_ms=time_ms if passed_all else 0,
+                memory_mb=mem_mb if passed_all else 0.0,
+                language=submission.language,
+                submission_history=[history_log]
+            )
+            db.add(progress)
+        else:
+            progress.attempts = (progress.attempts or 0) + 1
+            progress.submitted_code = submission.user_code
+            progress.language = submission.language
+            
+            history = list(progress.submission_history) if progress.submission_history else []
+            history.append(history_log)
+            progress.submission_history = history
+            
+            if passed_all:
+                progress.status = "solved"
+                progress.runtime_ms = time_ms
+                progress.memory_mb = mem_mb
+                
         db.commit()
+
+    # Award rewards ONLY if it's the first time they solve this question successfully
+    xp_earned = 0
+    coins_earned = 0
+    if passed_all and not already_solved:
+        profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
+        if profile:
+            profile.xp += q.xp_reward
+            profile.coins += q.coins_reward
+            profile.streak += 1
+            db.add(profile)
+            db.commit()
+            xp_earned = q.xp_reward
+            coins_earned = q.coins_reward
 
     return SubmissionResultResponse(
         passed_all=passed_all,
@@ -113,9 +157,9 @@ def submit_question(
         total_test_cases=total_test_cases,
         execution_time_ms=time_ms,
         memory_usage_mb=mem_mb,
-        xp_earned=q.xp_reward,
-        coins_earned=q.coins_reward,
-        feedback=f"All test cases passed in {time_ms}ms. Memory footprint is minimal. Great work!"
+        xp_earned=xp_earned,
+        coins_earned=coins_earned,
+        feedback=f"[{status_str}] {feedback}"
     )
 
 @router.get("/daily-challenge", response_model=CodingQuestionResponse)
@@ -150,7 +194,12 @@ def get_daily_challenge(
         editorial=q.editorial,
         doc_url=q.doc_url,
         video_url=q.video_url,
-        status=progress.status if progress else "unsolved"
+        status=progress.status if progress else "unsolved",
+        attempts=progress.attempts if progress else 0,
+        runtime_ms=progress.runtime_ms if progress else 0,
+        memory_mb=progress.memory_mb if progress else 0.0,
+        language=progress.language if progress else None,
+        submission_history=progress.submission_history if progress else []
     )
 
 @router.post("/daily-challenge/complete", response_model=Dict[str, Any])

@@ -578,25 +578,50 @@ class _CodingPracticeScreenState extends ConsumerState<CodingPracticeScreen> {
   // ── Tab 4: Statistics ──────────────────────────────────────────────────────
 
   Widget _buildStatsTab(CodingPracticeState s) {
+    final solvedCount = s.questions.where((q) => q.status == 'solved').length;
+    
+    int totalAttempts = 0;
+    int successfulAttempts = 0;
+    int totalRuntime = 0;
+    int acceptedCount = 0;
+    
+    for (final q in s.questions) {
+      totalAttempts += q.attempts;
+      for (final h in q.submissionHistory) {
+        if (h['status'] == 'Accepted') {
+          successfulAttempts++;
+          totalRuntime += (h['runtime_ms'] as num?)?.toInt() ?? 0;
+          acceptedCount++;
+        }
+      }
+    }
+    
+    final accuracyStr = totalAttempts == 0
+        ? '100%'
+        : '${(successfulAttempts / totalAttempts * 100).toStringAsFixed(1)}%';
+        
+    final avgRuntimeStr = acceptedCount == 0
+        ? '0 ms'
+        : '${(totalRuntime / acceptedCount).toStringAsFixed(1)} ms';
+
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 100),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Row 1: Large summary metrics
           Row(
             children: [
-              _statSquare('Solved Issues', '${s.solvedCount}', 'Baseline + local'),
+              _statSquare('Solved Issues', '$solvedCount', 'Active solved target'),
               const SizedBox(width: 12),
-              _statSquare('Average Acc', '94.2%', 'Test case score'),
+              _statSquare('Average Acc', accuracyStr, 'Successful / Total attempts'),
             ],
           ),
           const SizedBox(height: 12),
           Row(
             children: [
-              _statSquare('Learning Time', '8.4 hrs', 'Total active editor'),
+              _statSquare('Avg Runtime', avgRuntimeStr, 'Accepted execution speed'),
               const SizedBox(width: 12),
-              _statSquare('Streak Max', '12 Days', 'Consistency peak'),
+              _statSquare('Streak Max', '${s.streak} Days', 'Active daily streak'),
             ],
           ),
           const SizedBox(height: 24),

@@ -23,7 +23,12 @@ async def lifespan(app: FastAPI):
             connection.execute(text("ALTER TABLE user_resource_progress ADD COLUMN IF NOT EXISTS bookmarks JSONB;"))
             connection.execute(text("ALTER TABLE user_resource_progress ADD COLUMN IF NOT EXISTS highlights JSONB;"))
             connection.execute(text("ALTER TABLE user_resource_progress ADD COLUMN IF NOT EXISTS notes JSONB;"))
-            print("Successfully verified onboarding_completed and reading engine columns.")
+            connection.execute(text("ALTER TABLE user_question_progress ADD COLUMN IF NOT EXISTS attempts INTEGER DEFAULT 0;"))
+            connection.execute(text("ALTER TABLE user_question_progress ADD COLUMN IF NOT EXISTS runtime_ms INTEGER DEFAULT 0;"))
+            connection.execute(text("ALTER TABLE user_question_progress ADD COLUMN IF NOT EXISTS memory_mb FLOAT DEFAULT 0.0;"))
+            connection.execute(text("ALTER TABLE user_question_progress ADD COLUMN IF NOT EXISTS language VARCHAR;"))
+            connection.execute(text("ALTER TABLE user_question_progress ADD COLUMN IF NOT EXISTS submission_history JSONB;"))
+            print("Successfully verified onboarding_completed, reading, and coding database columns.")
         except Exception as e:
             print(f"Error checking/adding db columns: {e}")
     

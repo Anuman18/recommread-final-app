@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/services/api_client.dart';
 import 'coding_practice_provider.dart';
 
 class QuestionDetailsScreen extends ConsumerStatefulWidget {
@@ -26,28 +27,65 @@ class _QuestionDetailsScreenState extends ConsumerState<QuestionDetailsScreen>
   bool _passedAll = false;
   int _visibleHintCount = 0;
 
-  // Simulation Metrics
+  // Real Metrics
   int _passedTestCases = 0;
-  final int _totalTestCases = 5;
-  int _execTimeMs = 12;
-  double _memMb = 1.1;
+  int _totalTestCases = 1;
+  int _execTimeMs = 0;
+  double _memMb = 0.0;
+  String _feedback = '';
+
+  // Selected language state
+  String _selectedLanguage = 'python';
+
+  // AI Copilot state
+  bool _isAiLoading = false;
+  String _aiResponse = '';
 
   // Reward Splash Overlay
   bool _showCelebration = false;
 
+  String _getTemplateFor(String qId, String lang) {
+    if (lang == 'sql') {
+      return '-- Write your SQL query here\nSELECT salary\nFROM Employee;';
+    }
+    
+    if (qId == 'q1') {
+      switch (lang) {
+        case 'python': return 'def reverse_list(arr):\n    # Write Python solution\n    return arr[::-1]';
+        case 'javascript': return 'function reverseList(arr) {\n    // Write JavaScript solution\n    return arr.reverse();\n}';
+        case 'cpp': return '#include <vector>\nusing namespace std;\n\nvector<int> reverseList(vector<int>& arr) {\n    // Write C++ solution\n}';
+        case 'java': return 'import java.util.*;\n\nclass Solution {\n    public int[] reverseList(int[] arr) {\n        // Write Java solution\n    }\n}';
+      }
+    } else if (qId == 'q2') {
+      switch (lang) {
+        case 'python': return 'def find_missing(nums):\n    # Write Python solution\n    pass';
+        case 'javascript': return 'function findMissing(nums) {\n    // Write JavaScript solution\n}';
+        case 'cpp': return '#include <vector>\nusing namespace std;\n\nint findMissing(vector<int>& nums) {\n    // Write C++ solution\n}';
+        case 'java': return 'import java.util.*;\n\nclass Solution {\n    public int findMissing(int[] nums) {\n        // Write Java solution\n    }\n}';
+      }
+    } else if (qId == 'q3') {
+      switch (lang) {
+        case 'python': return 'import numpy as np\n\ndef matrix_dot_product(A, B):\n    # Write Python solution\n    return np.dot(A, B)';
+        case 'javascript': return 'function matrixDotProduct(A, B) {\n    // Write JavaScript solution\n}';
+        case 'cpp': return '#include <vector>\nusing namespace std;\n\nvector<vector<int>> matrixDotProduct(vector<vector<int>>& A, vector<vector<int>>& B) {\n    // Write C++ solution\n}';
+        case 'java': return 'import java.util.*;\n\nclass Solution {\n    public int[][] matrixDotProduct(int[][] A, int[][] B) {\n        // Write Java solution\n    }\n}';
+      }
+    } else if (qId == 'q4') {
+      switch (lang) {
+        case 'python': return 'def filter_missing_ages(arr):\n    # Write Python solution\n    return [x for x in arr if x is not None]';
+        case 'javascript': return 'function filterMissingAges(arr) {\n    // Write JavaScript solution\n    return arr.filter(x => x !== null);\n}';
+        case 'cpp': return '#include <vector>\nusing namespace std;\n\nvector<double> filterMissingAges(vector<double>& arr) {\n    // Write C++ solution\n}';
+        case 'java': return 'import java.util.*;\n\nclass Solution {\n    public double[] filterMissingAges(double[] arr) {\n        // Write Java solution\n    }\n}';
+      }
+    }
+    return 'def solve():\n    pass';
+  }
+
   @override
   void initState() {
     super.initState();
-    // Default template code depending on question topic
-    String template = 'def solve(arr):\n    # Write your python code here\n    pass';
-    if (widget.question.topicId.contains('sql')) {
-      template = 'SELECT *\nFROM Employee\nWHERE salary > 100000;';
-    } else if (widget.question.topicId.contains('numpy')) {
-      template = 'import numpy as np\n\ndef dot_product(A, B):\n    return np.dot(A, B)';
-    } else if (widget.question.topicId.contains('pandas')) {
-      template = 'import pandas as pd\n\ndef filter_ages(df):\n    return df';
-    }
-    _codeCtrl = TextEditingController(text: template);
+    _selectedLanguage = widget.question.topicId.contains('sql') ? 'sql' : 'python';
+    _codeCtrl = TextEditingController(text: _getTemplateFor(widget.question.id, _selectedLanguage));
   }
 
   @override
@@ -69,49 +107,80 @@ class _QuestionDetailsScreenState extends ConsumerState<QuestionDetailsScreen>
     }
   }
 
-  void _runCodeSimulate() async {
+  void _runCodeSimulate(CodingQuestion liveQ) async {
     setState(() {
       _isRunning = true;
       _showSubmissionResult = false;
     });
 
     HapticFeedback.mediumImpact();
-    await Future.delayed(const Duration(milliseconds: 1400));
+    
+    try {
+      final res = await ref.read(codingPracticeProvider.notifier).submitSolution(
+        liveQ.id,
+        _selectedLanguage,
+        _codeCtrl.text,
+        isSubmit: false,
+      );
 
-    setState(() {
-      _isRunning = false;
-      _showSubmissionResult = true;
-      _passedAll = true; // Simulating successful run
-      _passedTestCases = 5;
-      _execTimeMs = Random().nextInt(10) + 8;
-      _memMb = 1.0 + (Random().nextDouble() * 0.4);
-    });
+      setState(() {
+        _isRunning = false;
+        _showSubmissionResult = true;
+        _passedAll = res['passed_all'] ?? false;
+        _passedTestCases = (res['passed_test_cases'] as num?)?.toInt() ?? 0;
+        _totalTestCases = (res['total_test_cases'] as num?)?.toInt() ?? 1;
+        _execTimeMs = (res['execution_time_ms'] as num?)?.toInt() ?? 0;
+        _memMb = (res['memory_usage_mb'] as num?)?.toDouble() ?? 0.0;
+        _feedback = res['feedback'] ?? '';
+      });
+    } catch (e) {
+      setState(() {
+        _isRunning = false;
+        _showSubmissionResult = true;
+        _passedAll = false;
+        _feedback = 'Failed to run code: $e';
+      });
+    }
   }
 
   void _submitSolutionSimulate(CodingQuestion liveQ) async {
     setState(() {
       _isSubmitting = true;
+      _showSubmissionResult = false;
     });
 
     HapticFeedback.heavyImpact();
-    await Future.delayed(const Duration(milliseconds: 1800));
 
-    setState(() {
-      _isSubmitting = false;
-      _showSubmissionResult = true;
-      _passedAll = true;
-      _passedTestCases = 5;
-      _execTimeMs = Random().nextInt(6) + 6;
-      _memMb = 1.0 + (Random().nextDouble() * 0.2);
-    });
+    try {
+      final res = await ref.read(codingPracticeProvider.notifier).submitSolution(
+        liveQ.id,
+        _selectedLanguage,
+        _codeCtrl.text,
+        isSubmit: true,
+      );
 
-    if (liveQ.status != 'solved') {
-      // Award rewards in Provider
-      await ref.read(codingPracticeProvider.notifier).submitSolution(liveQ.id, _codeCtrl.text);
-      
-      // Play Confetti Splash
+      final isSolved = res['passed_all'] ?? false;
+
       setState(() {
-        _showCelebration = true;
+        _isSubmitting = false;
+        _showSubmissionResult = true;
+        _passedAll = isSolved;
+        _passedTestCases = (res['passed_test_cases'] as num?)?.toInt() ?? 0;
+        _totalTestCases = (res['total_test_cases'] as num?)?.toInt() ?? 1;
+        _execTimeMs = (res['execution_time_ms'] as num?)?.toInt() ?? 0;
+        _memMb = (res['memory_usage_mb'] as num?)?.toDouble() ?? 0.0;
+        _feedback = res['feedback'] ?? '';
+        
+        if (isSolved && liveQ.status != 'solved') {
+          _showCelebration = true;
+        }
+      });
+    } catch (e) {
+      setState(() {
+        _isSubmitting = false;
+        _showSubmissionResult = true;
+        _passedAll = false;
+        _feedback = 'Failed to submit solution: $e';
       });
     }
   }
@@ -166,10 +235,39 @@ class _QuestionDetailsScreenState extends ConsumerState<QuestionDetailsScreen>
                           'Coding Console',
                           style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.textPrimaryDark),
                         ),
-                        Text(
-                          liveQ.topicId.contains('sql') ? 'SQL' : 'Python 3',
-                          style: GoogleFonts.inter(fontSize: 10, color: AppColors.textTertiaryDark, fontWeight: FontWeight.w700),
-                        ),
+                        if (liveQ.topicId.contains('sql'))
+                          Text(
+                            'SQL',
+                            style: GoogleFonts.inter(fontSize: 10, color: AppColors.textTertiaryDark, fontWeight: FontWeight.w700),
+                          )
+                        else
+                          Theme(
+                            data: Theme.of(context).copyWith(
+                              canvasColor: AppColors.darkCard,
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<String>(
+                                value: _selectedLanguage,
+                                dropdownColor: AppColors.darkCard,
+                                icon: const Icon(Icons.arrow_drop_down, color: AppColors.gold, size: 16),
+                                style: GoogleFonts.inter(fontSize: 10, color: AppColors.gold, fontWeight: FontWeight.w700),
+                                items: const [
+                                  DropdownMenuItem(value: 'python', child: Text('Python 3')),
+                                  DropdownMenuItem(value: 'javascript', child: Text('JavaScript')),
+                                  DropdownMenuItem(value: 'cpp', child: Text('C++')),
+                                  DropdownMenuItem(value: 'java', child: Text('Java')),
+                                ],
+                                onChanged: (val) {
+                                  if (val != null) {
+                                    setState(() {
+                                      _selectedLanguage = val;
+                                      _codeCtrl.text = _getTemplateFor(liveQ.id, val);
+                                    });
+                                  }
+                                },
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -262,7 +360,7 @@ class _QuestionDetailsScreenState extends ConsumerState<QuestionDetailsScreen>
   // ── Tab Toggles ────────────────────────────────────────────────────────────
 
   Widget _buildTabSelectionBar(CodingQuestion q) {
-    final tabs = ['Problem', 'Hints', 'Editorial', 'Resources'];
+    final tabs = ['Problem', 'Hints', 'Editorial', 'Resources', 'AI Copilot'];
     return Container(
       height: 38,
       margin: const EdgeInsets.symmetric(horizontal: 24),
@@ -286,7 +384,7 @@ class _QuestionDetailsScreenState extends ConsumerState<QuestionDetailsScreen>
                   child: Text(
                     tabs[i],
                     style: GoogleFonts.inter(
-                      fontSize: 9,
+                      fontSize: 8.5,
                       fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
                       color: isSelected ? AppColors.darkBg : AppColors.textSecondaryDark,
                     ),
@@ -312,6 +410,8 @@ class _QuestionDetailsScreenState extends ConsumerState<QuestionDetailsScreen>
         return _buildEditorialTab(q);
       case 3:
         return _buildResourcesTab(q);
+      case 4:
+        return _buildAICopilotTab(q);
       default:
         return _buildProblemTab(q);
     }
@@ -360,6 +460,64 @@ class _QuestionDetailsScreenState extends ConsumerState<QuestionDetailsScreen>
                 padding: const EdgeInsets.only(bottom: 4),
                 child: Text('•  $c', style: GoogleFonts.inter(fontSize: 10, color: AppColors.textTertiaryDark)),
               )),
+        ],
+
+        // Submission History
+        if (q.submissionHistory.isNotEmpty) ...[
+          const SizedBox(height: 24),
+          Text(
+            'Submission History:',
+            style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.textPrimaryDark),
+          ),
+          const SizedBox(height: 8),
+          ...q.submissionHistory.reversed.map((h) {
+            final isAccepted = h['status'] == 'Accepted';
+            final statusColor = isAccepted ? const Color(0xFF4CAF50) : AppColors.error;
+            final timeStr = h['timestamp'] != null
+                ? DateTime.parse(h['timestamp'].toString()).toLocal().toString().split('.').first
+                : '';
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AppColors.darkCard,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.darkBorder),
+                ),
+                child: Row(
+                  children: [
+                    Icon(isAccepted ? Icons.check_circle_rounded : Icons.cancel_rounded, color: statusColor, size: 14),
+                    const SizedBox(width: 8),
+                    Text(
+                      h['status']?.toString() ?? 'Failed',
+                      style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w800, color: statusColor),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      h['language']?.toString().toUpperCase() ?? '',
+                      style: GoogleFonts.inter(fontSize: 9, color: AppColors.textTertiaryDark, fontWeight: FontWeight.w700),
+                    ),
+                    const Spacer(),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          '${h['runtime_ms']} ms | ${(h['memory_mb'] as num).toStringAsFixed(1)} MB',
+                          style: GoogleFonts.inter(fontSize: 9, color: AppColors.textSecondaryDark, fontWeight: FontWeight.w600),
+                        ),
+                        if (timeStr.isNotEmpty)
+                          Text(
+                            timeStr,
+                            style: GoogleFonts.inter(fontSize: 8, color: AppColors.textTertiaryDark),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
         ],
       ],
     );
@@ -510,7 +668,7 @@ class _QuestionDetailsScreenState extends ConsumerState<QuestionDetailsScreen>
               Icon(_passedAll ? Icons.check_circle_rounded : Icons.cancel_rounded, color: statusColor, size: 16),
               const SizedBox(width: 8),
               Text(
-                _passedAll ? 'Submission Accepted!' : 'Test Cases Failed',
+                _passedAll ? 'Accepted' : 'Failed / Compile Error',
                 style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w900, color: statusColor),
               ),
               const Spacer(),
@@ -520,14 +678,30 @@ class _QuestionDetailsScreenState extends ConsumerState<QuestionDetailsScreen>
               ),
             ],
           ),
+          if (_feedback.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.darkBorder),
+              ),
+              child: Text(
+                _feedback,
+                style: GoogleFonts.firaCode(fontSize: 10, color: AppColors.textSecondaryDark, height: 1.4),
+              ),
+            ),
+          ],
           const SizedBox(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               _metricItem('Execution Time', '$_execTimeMs ms'),
               _metricItem('Memory Usage', '${_memMb.toStringAsFixed(1)} MB'),
-              _metricItem('XP Gained', '+${q.xpReward} XP'),
-              _metricItem('Coins Gained', '+${q.coinsReward} Coins'),
+              _metricItem('XP Gained', _passedAll ? '+${q.xpReward} XP' : '0 XP'),
+              _metricItem('Coins Gained', _passedAll ? '+${q.coinsReward} Coins' : '0 Coins'),
             ],
           ),
         ],
@@ -557,7 +731,7 @@ class _QuestionDetailsScreenState extends ConsumerState<QuestionDetailsScreen>
           // Run Tests
           Expanded(
             child: GestureDetector(
-              onTap: _isRunning || _isSubmitting ? null : _runCodeSimulate,
+              onTap: _isRunning || _isSubmitting ? null : () => _runCodeSimulate(q),
               child: Container(
                 height: 48,
                 decoration: BoxDecoration(
@@ -599,6 +773,189 @@ class _QuestionDetailsScreenState extends ConsumerState<QuestionDetailsScreen>
         ],
       ),
     );
+  }
+
+  Widget _buildAICopilotTab(CodingQuestion q) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'AI Coding Copilot',
+          style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w900, color: AppColors.gold),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Ask your personal AI Tutor for help explaining, optimizing, analyzing, or debugging your solution.',
+          style: GoogleFonts.inter(fontSize: 11, color: AppColors.textSecondaryDark, height: 1.4),
+        ),
+        const SizedBox(height: 16),
+        
+        // Grid of action buttons
+        GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: 10,
+          crossAxisSpacing: 10,
+          childAspectRatio: 2.8,
+          children: [
+            _aiActionBtn(
+              icon: Icons.lightbulb_outline_rounded,
+              title: 'AI Hint',
+              onTap: () => _triggerAiCall('/tutor/coding-hint', {'question_title': q.title}, isReview: false),
+            ),
+            _aiActionBtn(
+              icon: Icons.menu_book_rounded,
+              title: 'Explain Solution',
+              onTap: () => _triggerAiCall('/tutor/chat/continue', {
+                'context_type': 'coding',
+                'context_id': q.id,
+                'message': 'Explain how to solve the problem: ${q.title}'
+              }, isReview: false),
+            ),
+            _aiActionBtn(
+              icon: Icons.bolt_rounded,
+              title: 'Optimize Code',
+              onTap: () => _triggerAiCall('/tutor/review-code', {
+                'question_title': q.title,
+                'code': _codeCtrl.text
+              }, isReview: true),
+            ),
+            _aiActionBtn(
+              icon: Icons.analytics_outlined,
+              title: 'Complexity Analysis',
+              onTap: () => _triggerAiCall('/tutor/chat/continue', {
+                'context_type': 'coding',
+                'context_id': q.id,
+                'message': 'Provide a detailed Big-O complexity analysis for the following code:\n\n${_codeCtrl.text}'
+              }, isReview: false),
+            ),
+            _aiActionBtn(
+              icon: Icons.alt_route_rounded,
+              title: 'Alternative Approaches',
+              onTap: () => _triggerAiCall('/tutor/chat/continue', {
+                'context_type': 'coding',
+                'context_id': q.id,
+                'message': 'What are some alternative algorithms to solve the problem: ${q.title}? Mention trade-offs.'
+              }, isReview: false),
+            ),
+            _aiActionBtn(
+              icon: Icons.bug_report_outlined,
+              title: 'Debug Assistance',
+              onTap: () => _triggerAiCall('/tutor/chat/continue', {
+                'context_type': 'coding',
+                'context_id': q.id,
+                'message': 'Help me locate syntax or logical errors in my code. Here is my current draft:\n\n${_codeCtrl.text}'
+              }, isReview: false),
+            ),
+          ],
+        ),
+        
+        const SizedBox(height: 20),
+        
+        // AI Response Output Panel
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.darkCard,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: _isAiLoading ? AppColors.gold.withValues(alpha: 0.3) : AppColors.darkBorder,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.psychology_outlined, color: AppColors.gold, size: 18),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Copilot Response',
+                    style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w900, color: AppColors.textPrimaryDark),
+                  ),
+                  if (_isAiLoading) ...[
+                    const Spacer(),
+                    const SizedBox(
+                      width: 12,
+                      height: 12,
+                      child: CircularProgressIndicator(color: AppColors.gold, strokeWidth: 1.5),
+                    ),
+                  ],
+                ],
+              ),
+              const Divider(color: AppColors.darkBorder, height: 20),
+              if (_isAiLoading)
+                Text(
+                  'Consulting RecommRead AI Tutor...',
+                  style: GoogleFonts.inter(fontSize: 12, color: AppColors.textTertiaryDark, fontStyle: FontStyle.italic),
+                )
+              else if (_aiResponse.isEmpty)
+                Text(
+                  'Click any action button above to generate AI hints or code diagnostics.',
+                  style: GoogleFonts.inter(fontSize: 12, color: AppColors.textTertiaryDark),
+                )
+              else
+                Text(
+                  _aiResponse,
+                  style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondaryDark, height: 1.5),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 30),
+      ],
+    );
+  }
+
+  Widget _aiActionBtn({required IconData icon, required String title, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: _isAiLoading ? null : onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.darkCard,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.darkBorder),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        child: Row(
+          children: [
+            Icon(icon, color: AppColors.gold, size: 16),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                title,
+                style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.textPrimaryDark),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _triggerAiCall(String endpoint, Map<String, dynamic> body, {required bool isReview}) async {
+    setState(() {
+      _isAiLoading = true;
+      _aiResponse = '';
+    });
+    HapticFeedback.mediumImpact();
+    
+    try {
+      final res = await apiClient.post(endpoint, body: body);
+      setState(() {
+        _isAiLoading = false;
+        _aiResponse = res['reply'] ?? 'No response returned.';
+      });
+    } catch (e) {
+      setState(() {
+        _isAiLoading = false;
+        _aiResponse = 'AI Copilot Error: Failed to connect to AI Coach. Details: $e';
+      });
+    }
   }
 }
 

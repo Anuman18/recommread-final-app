@@ -88,6 +88,11 @@ class CodingQuestion {
   final String editorial;
   final String docUrl;
   final String videoUrl;
+  final int attempts;
+  final int runtimeMs;
+  final double memoryMb;
+  final String? language;
+  final List<Map<String, dynamic>> submissionHistory;
 
   const CodingQuestion({
     required this.id,
@@ -107,10 +112,20 @@ class CodingQuestion {
     required this.editorial,
     required this.docUrl,
     required this.videoUrl,
+    this.attempts = 0,
+    this.runtimeMs = 0,
+    this.memoryMb = 0.0,
+    this.language,
+    this.submissionHistory = const [],
   });
 
   CodingQuestion copyWith({
     String? status,
+    int? attempts,
+    int? runtimeMs,
+    double? memoryMb,
+    String? language,
+    List<Map<String, dynamic>>? submissionHistory,
   }) {
     return CodingQuestion(
       id: id,
@@ -130,6 +145,11 @@ class CodingQuestion {
       editorial: editorial,
       docUrl: docUrl,
       videoUrl: videoUrl,
+      attempts: attempts ?? this.attempts,
+      runtimeMs: runtimeMs ?? this.runtimeMs,
+      memoryMb: memoryMb ?? this.memoryMb,
+      language: language ?? this.language,
+      submissionHistory: submissionHistory ?? this.submissionHistory,
     );
   }
 
@@ -154,6 +174,13 @@ class CodingQuestion {
       editorial: j['editorial'] ?? '',
       docUrl: j['doc_url'] ?? '',
       videoUrl: j['video_url'] ?? '',
+      attempts: (j['attempts'] as num?)?.toInt() ?? 0,
+      runtimeMs: (j['runtime_ms'] as num?)?.toInt() ?? 0,
+      memoryMb: (j['memory_mb'] as num?)?.toDouble() ?? 0.0,
+      language: j['language']?.toString(),
+      submissionHistory: (j['submission_history'] as List? ?? [])
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList(),
     );
   }
 }
@@ -396,10 +423,19 @@ class CodingPracticeNotifier extends StateNotifier<CodingPracticeState> {
     }
   }
 
-  Future<void> submitSolution(String questionId, String userCode) async {
+  Future<Map<String, dynamic>> submitSolution(
+    String questionId,
+    String language,
+    String userCode, {
+    bool isSubmit = true,
+  }) async {
     final result = await apiClient.post(
       '${ApiConstants.codingQuestions}/$questionId/submit',
-      body: {'user_code': userCode},
+      body: {
+        'language': language,
+        'user_code': userCode,
+        'is_submit': isSubmit,
+      },
     );
 
     final xpEarned = (result['xp_earned'] as num?)?.toInt() ?? 0;
@@ -407,6 +443,7 @@ class CodingPracticeNotifier extends StateNotifier<CodingPracticeState> {
       await _ref.read(xpProvider.notifier).refreshFromBackend();
     }
     await loadPracticeData();
+    return Map<String, dynamic>.from(result as Map);
   }
 
   Future<void> completeDailyChallenge() async {

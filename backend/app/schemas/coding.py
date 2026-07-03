@@ -19,12 +19,19 @@ class CodingQuestionResponse(BaseModel):
     doc_url: Optional[str] = None
     video_url: Optional[str] = None
     status: str = "unsolved" # unsolved, in_progress, solved
+    attempts: int = 0
+    runtime_ms: int = 0
+    memory_mb: float = 0.0
+    language: Optional[str] = None
+    submission_history: Optional[List[Dict[str, Any]]] = None
 
     class Config:
         from_attributes = True
 
 class CodeSubmission(BaseModel):
+    language: str
     user_code: str
+    is_submit: bool = True
 
 class SubmissionResultResponse(BaseModel):
     passed_all: bool
