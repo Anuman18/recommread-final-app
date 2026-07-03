@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/services/api_client.dart';
 import '../../core/utils/career_utils.dart';
@@ -110,6 +111,9 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
       final name = profileMap['name']?.toString() ?? userMap['name']?.toString() ?? 'User';
       final avatarLetter = name.isNotEmpty ? name[0].toUpperCase() : 'U';
 
+      final prefs = await SharedPreferences.getInstance();
+      final localDark = prefs.getBool('theme_dark_mode') ?? true;
+
       state = state.copyWith(
         name: name,
         avatarLetter: avatarLetter,
@@ -123,6 +127,7 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
         booksCompleted: (userMap['books_completed'] as num?)?.toInt() ?? 0,
         booksSaved: (userMap['books_saved'] as num?)?.toInt() ?? 0,
         language: profileMap['preferred_language']?.toString() ?? 'English',
+        isDarkMode: localDark,
         isLoading: false,
       );
     } on ApiException catch (e) {
@@ -132,7 +137,7 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
     }
   }
 
-  Future<void> updateProfile({
+  Future<bool> updateProfile({
     required String name,
     required ReadingGoal readingGoal,
     required Set<String> favoriteGenres,
@@ -157,15 +162,21 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
         favoriteGenres: favoriteGenres,
         isLoading: false,
       );
+      return true;
     } on ApiException catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: e.message);
+      return false;
     } catch (_) {
       state = state.copyWith(isLoading: false, errorMessage: 'Failed to update profile.');
+      return false;
     }
   }
 
-  void toggleTheme() {
-    state = state.copyWith(isDarkMode: !state.isDarkMode);
+  Future<void> toggleTheme() async {
+    final nextMode = !state.isDarkMode;
+    state = state.copyWith(isDarkMode: nextMode);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('theme_dark_mode', nextMode);
   }
 
   void updateLanguage(String newLanguage) {

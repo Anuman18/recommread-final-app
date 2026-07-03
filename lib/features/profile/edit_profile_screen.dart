@@ -56,7 +56,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     if (_formKey.currentState?.validate() ?? false) {
       setState(() => _isSaving = true);
       HapticFeedback.mediumImpact();
-      await ref.read(profileProvider.notifier).updateProfile(
+      final success = await ref.read(profileProvider.notifier).updateProfile(
             name: _nameController.text.trim(),
             readingGoal: _selectedGoal,
             favoriteGenres: _selectedGenres,
@@ -64,25 +64,47 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           );
       if (mounted) {
         setState(() => _isSaving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: AppColors.darkSurface,
-            content: Text(
-              'Profile updated successfully',
-              style: GoogleFonts.inter(
-                color: AppColors.textPrimaryDark,
-                fontWeight: FontWeight.w600,
-                fontSize: 12,
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: AppColors.darkSurface,
+              content: Text(
+                'Profile updated successfully',
+                style: GoogleFonts.inter(
+                  color: AppColors.textPrimaryDark,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
+              ),
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 2),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
             ),
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 2),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+          );
+          Navigator.pop(context);
+        } else {
+          final errorMsg = ref.read(profileProvider).errorMessage ?? 'Failed to update profile';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: Colors.redAccent,
+              content: Text(
+                errorMsg,
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
+              ),
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 3),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
-          ),
-        );
-        Navigator.pop(context);
+          );
+        }
       }
     }
   }
