@@ -575,62 +575,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     );
   }
 
-  Widget _buildFutureSelfCard() {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.mediumImpact();
-        context.push('/future-self/dashboard');
-      },
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [
-              Color(0xFF1A1228),
-              Color(0xFF120D1E),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppColors.gold.withValues(alpha: 0.3), width: 1.5),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.gold.withValues(alpha: 0.1),
-              blurRadius: 20,
-              spreadRadius: 2,
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: AppColors.goldGradient,
-                boxShadow: [BoxShadow(color: AppColors.gold.withValues(alpha: 0.4), blurRadius: 14)],
-              ),
-              child: const Center(child: Text('✨', style: TextStyle(fontSize: 22))),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Meet Your Future Self', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.textPrimaryDark)),
-                  const SizedBox(height: 4),
-                  Text('Timeline · Skill Radar · Potential Meter', style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondaryDark)),
-                ],
-              ),
-            ),
-            const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.gold),
-          ],
-        ),
-      ),
-    );
-  }
+
 
   Widget _buildLifeDashboardCard() {
     return GestureDetector(
