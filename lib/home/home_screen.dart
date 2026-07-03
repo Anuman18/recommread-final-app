@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../core/theme/app_colors.dart';
 import '../features/onboarding/onboarding_provider.dart';
 import '../features/profile/profile_provider.dart';
+import '../features/library/library_provider.dart';
 import '../core/widgets/animated_button.dart';
 import 'home_provider.dart';
 import 'widgets/home_header.dart';
@@ -123,7 +124,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   Widget build(BuildContext context) {
     final homeState = ref.watch(homeProvider);
     final profile = ref.watch(profileProvider);
+    final libraryState = ref.watch(libraryProvider);
     final isLoading = homeState.isLoading;
+
+    final bookmarkedIds = libraryState.resources.where((r) => r.isBookmarked).map((r) => r.id).toSet();
+    final mappedContinue = homeState.continueResource != null
+        ? homeState.continueResource!.copyWith(
+            isBookmarked: bookmarkedIds.contains(homeState.continueResource!.id),
+          )
+        : null;
+    final mappedResources = homeState.learningResources.map((r) {
+      return r.copyWith(isBookmarked: bookmarkedIds.contains(r.id));
+    }).toList();
 
     // Fire stagger when content becomes available
     if (!isLoading && _sectionCtrls[0].status == AnimationStatus.dismissed) {
@@ -233,15 +245,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   const SliverToBoxAdapter(child: SizedBox(height: 32)),
 
                   // 3. Continue Learning
-                  if (homeState.continueResource != null)
+                  if (mappedContinue != null)
                     SliverToBoxAdapter(
                       child: _section(
                         2,
                         ContinueLearningCard(
-                            resource: homeState.continueResource!),
+                            resource: mappedContinue),
                       ),
                     ),
-                  if (homeState.continueResource != null)
+                  if (mappedContinue != null)
                     const SliverToBoxAdapter(child: SizedBox(height: 32)),
 
                   // 4. AI Recommendation
@@ -257,15 +269,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                     const SliverToBoxAdapter(child: SizedBox(height: 32)),
 
                   // 5. Learning Resources
-                  if (homeState.learningResources.isNotEmpty)
+                  if (mappedResources.isNotEmpty)
                     SliverToBoxAdapter(
                       child: _section(
                         4,
                         LearningResourcesSection(
-                            resources: homeState.learningResources),
+                            resources: mappedResources),
                       ),
                     ),
-                  if (homeState.learningResources.isNotEmpty)
+                  if (mappedResources.isNotEmpty)
                     const SliverToBoxAdapter(child: SizedBox(height: 32)),
 
                   // 6. Skill Progress

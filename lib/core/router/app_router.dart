@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../features/auth/auth_provider.dart';
+import 'dart:async';
 import '../../features/splash/splash_screen.dart';
 import '../../features/splash/beta_welcome_screen.dart';
 import '../../features/auth/login_screen.dart';
@@ -100,9 +102,49 @@ NoTransitionPage<T> _noTransition<T>({
   return NoTransitionPage<T>(key: state.pageKey, child: child);
 }
 
+class GoRouterRefreshStream extends ChangeNotifier {
+  late final StreamSubscription<dynamic> _subscription;
+
+  GoRouterRefreshStream(Stream<dynamic> stream) {
+    notifyListeners();
+    _subscription = stream.asBroadcastStream().listen((dynamic _) => notifyListeners());
+  }
+
+  @override
+  void dispose() {
+    _subscription.cancel();
+    super.dispose();
+  }
+}
+
 final appRouterProvider = Provider<GoRouter>((ref) {
+  // Watch auth state changes so router stays updated
+  ref.watch(authProvider);
+
   return GoRouter(
     initialLocation: '/splash',
+    refreshListenable: GoRouterRefreshStream(
+      ref.watch(authProvider.notifier).stream,
+    ),
+    redirect: (context, state) {
+      final auth = ref.read(authProvider);
+
+      final isPreAuthPath = state.matchedLocation == '/splash' ||
+          state.matchedLocation == '/login' ||
+          state.matchedLocation == '/signup' ||
+          state.matchedLocation == '/beta-welcome';
+
+      if (!auth.isAuthenticated) {
+        if (!isPreAuthPath) {
+          return '/login';
+        }
+      } else {
+        if (isPreAuthPath && state.matchedLocation != '/splash') {
+          return auth.user?.onboardingCompleted == true ? '/home' : '/onboarding';
+        }
+      }
+      return null;
+    },
     routes: [
       // ── Pre-auth screens ─────────────────────────────────────────────
       GoRoute(

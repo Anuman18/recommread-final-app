@@ -83,6 +83,24 @@ class LearningResource {
     this.icon = '📖',
   });
 
+  LearningResource copyWith({
+    bool? isBookmarked,
+  }) {
+    return LearningResource(
+      id: id,
+      title: title,
+      source: source,
+      type: type,
+      difficulty: difficulty,
+      timeMin: timeMin,
+      xp: xp,
+      url: url,
+      isBookmarked: isBookmarked ?? this.isBookmarked,
+      thumbnailColor: thumbnailColor,
+      icon: icon,
+    );
+  }
+
   factory LearningResource.fromJson(Map<String, dynamic> j) {
     final category = j['category'] as String? ?? j['type'] as String? ?? 'course';
     return LearningResource(

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
 import '../home_provider.dart';
+import '../../features/library/library_provider.dart' as lib;
 
 class LearningResourcesSection extends StatefulWidget {
   const LearningResourcesSection({super.key, required this.resources});
@@ -146,23 +149,21 @@ class _LearningResourcesSectionState extends State<LearningResourcesSection> {
 
 // ── Resource Card ─────────────────────────────────────────────────────────────
 
-class _ResourceCard extends StatefulWidget {
+class _ResourceCard extends ConsumerStatefulWidget {
   const _ResourceCard({required this.resource});
   final LearningResource resource;
 
   @override
-  State<_ResourceCard> createState() => _ResourceCardState();
+  ConsumerState<_ResourceCard> createState() => _ResourceCardState();
 }
 
-class _ResourceCardState extends State<_ResourceCard>
+class _ResourceCardState extends ConsumerState<_ResourceCard>
     with SingleTickerProviderStateMixin {
   late final AnimationController _pressCtrl;
-  bool _isBookmarked = false;
 
   @override
   void initState() {
     super.initState();
-    _isBookmarked = widget.resource.isBookmarked;
     _pressCtrl = AnimationController(
       vsync: this,
       lowerBound: 0.95,
@@ -209,7 +210,23 @@ class _ResourceCardState extends State<_ResourceCard>
       onTapDown: (_) => _pressCtrl.reverse(),
       onTapUp: (_) => _pressCtrl.forward(),
       onTapCancel: () => _pressCtrl.forward(),
-      onTap: () => HapticFeedback.lightImpact(),
+      onTap: () {
+        HapticFeedback.lightImpact();
+        final libRes = lib.LearningResource(
+          id: widget.resource.id,
+          title: widget.resource.title,
+          provider: widget.resource.source,
+          type: widget.resource.type,
+          difficulty: widget.resource.difficulty,
+          timeMin: widget.resource.timeMin,
+          xpReward: widget.resource.xp,
+          coinsReward: 10,
+          skills: const [],
+          url: widget.resource.url,
+          isBookmarked: widget.resource.isBookmarked,
+        );
+        GoRouter.of(context).push('/book/${widget.resource.id}', extra: libRes);
+      },
       child: ScaleTransition(
         scale: _pressCtrl,
         child: Container(
@@ -273,21 +290,21 @@ class _ResourceCardState extends State<_ResourceCard>
                     child: GestureDetector(
                       onTap: () {
                         HapticFeedback.selectionClick();
-                        setState(() => _isBookmarked = !_isBookmarked);
+                        ref.read(lib.libraryProvider.notifier).toggleBookmark(widget.resource.id);
                       },
                       child: Container(
                         width: 26,
                         height: 26,
                         decoration: BoxDecoration(
-                          color: _isBookmarked
+                          color: widget.resource.isBookmarked
                               ? AppColors.gold.withValues(alpha: 0.2)
                               : AppColors.darkBg.withValues(alpha: 0.7),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
-                          _isBookmarked ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+                          widget.resource.isBookmarked ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
                           size: 14,
-                          color: _isBookmarked ? AppColors.gold : AppColors.textTertiaryDark,
+                          color: widget.resource.isBookmarked ? AppColors.gold : AppColors.textTertiaryDark,
                         ),
                       ),
                     ),

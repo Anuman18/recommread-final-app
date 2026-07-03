@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
 import '../home_provider.dart';
+import '../../features/library/library_provider.dart' as lib;
 
 class ContinueLearningCard extends StatefulWidget {
   const ContinueLearningCard({super.key, required this.resource});
@@ -105,7 +107,23 @@ class _ContinueLearningCardState extends State<ContinueLearningCard>
             onTapDown: (_) => _pressCtrl.reverse(),
             onTapUp: (_) => _pressCtrl.forward(),
             onTapCancel: () => _pressCtrl.forward(),
-            onTap: () => HapticFeedback.lightImpact(),
+            onTap: () {
+              HapticFeedback.lightImpact();
+              final libRes = lib.LearningResource(
+                id: widget.resource.id,
+                title: widget.resource.title,
+                provider: widget.resource.source,
+                type: widget.resource.type,
+                difficulty: widget.resource.difficulty,
+                timeMin: widget.resource.timeMin,
+                xpReward: widget.resource.xp,
+                coinsReward: 10,
+                skills: const [],
+                url: widget.resource.url,
+                isBookmarked: widget.resource.isBookmarked,
+              );
+              GoRouter.of(context).push('/book/${widget.resource.id}', extra: libRes);
+            },
             child: ScaleTransition(
               scale: _pressCtrl,
               child: Container(

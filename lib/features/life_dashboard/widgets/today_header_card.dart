@@ -43,7 +43,13 @@ class _TodayHeaderCardState extends ConsumerState<TodayHeaderCard>
     final goalLabel = onboarding.goal?.label ?? profile.readingGoal.label;
     final now = DateTime.now();
     final hour = now.hour;
-    final greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
+    final greeting = (hour >= 5 && hour < 12)
+        ? 'Good Morning'
+        : (hour >= 12 && hour < 17)
+            ? 'Good Afternoon'
+            : (hour >= 17 && hour < 21)
+                ? 'Good Evening'
+                : 'Good Night';
     final dayName = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][now.weekday - 1];
 
     return FadeTransition(

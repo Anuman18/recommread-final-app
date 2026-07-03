@@ -47,28 +47,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
   // Categories helper based on career goal
   List<String> _getCategories(ReadingGoal goal) {
-    if (goal == ReadingGoal.uxDesigner) {
-      return [
-        'All',
-        'Figma Resources',
-        'Design Systems',
-        'Case Studies',
-        'UI Challenges',
-        'YouTube Tutorials',
-        'Blogs',
-        'Portfolio Tasks',
-      ];
-    }
     return [
       'All',
       'Documentation',
       'YouTube',
       'Courses',
-      'Coding Practice',
-      'Projects',
-      'Blogs',
-      'Research Papers',
-      'Interview Questions',
     ];
   }
 

@@ -274,9 +274,17 @@ class LibraryNotifier extends StateNotifier<LibraryState> {
     try {
       final result = await apiClient.post('${ApiConstants.resources}/$resourceId/bookmark');
       final updated = LearningResource.fromJson(Map<String, dynamic>.from(result));
+      bool found = false;
       final updatedList = state.resources.map((r) {
-        return r.id == resourceId ? updated : r;
+        if (r.id == resourceId) {
+          found = true;
+          return updated;
+        }
+        return r;
       }).toList();
+      if (!found) {
+        updatedList.add(updated);
+      }
       _updateDerivedLists(updatedList);
     } on ApiException catch (e) {
       state = state.copyWith(errorMessage: e.message);

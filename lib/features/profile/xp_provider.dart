@@ -89,7 +89,21 @@ class XpNotifier extends StateNotifier<XpState> {
   }
 
   Future<void> addXp(int amount) async {
-    await refreshFromBackend();
+    try {
+      await apiClient.post(
+        ApiConstants.gamificationClaimReward,
+        body: {
+          'reward_source': 'Activity Completion',
+          'xp_reward': amount,
+          'coins_reward': (amount ~/ 10).clamp(1, 50),
+        },
+      );
+      await refreshFromBackend();
+    } on ApiException catch (e) {
+      state = state.copyWith(errorMessage: e.message);
+    } catch (_) {
+      state = state.copyWith(errorMessage: 'Failed to award XP.');
+    }
   }
 
   Future<void> toggleChallenge(String challenge) async {

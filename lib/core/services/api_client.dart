@@ -24,6 +24,7 @@ class ApiClient {
   static const Duration _timeout = Duration(seconds: 30);
   static const String _tokenKey = 'jwt_token';
   String? _token;
+  VoidCallback? onUnauthorized;
 
   static final ApiClient _instance = ApiClient._internal();
   factory ApiClient() => _instance;
@@ -94,6 +95,7 @@ class ApiClient {
 
     if (code == 401) {
       clearToken();
+      onUnauthorized?.call();
       throw ApiException(_messageForStatus(code, ''), statusCode: code);
     }
 
