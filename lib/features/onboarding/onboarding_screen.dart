@@ -4,7 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/animated_button.dart';
-import 'onboarding_provider.dart';
+import '../onboarding/onboarding_provider.dart';
+import '../profile/profile_provider.dart';
 import 'pages/reading_goal_page.dart';
 import 'pages/reading_level_page.dart';
 import 'pages/daily_time_page.dart';
@@ -62,12 +63,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     super.initState();
     _progressCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 400),
+      duration: const Duration(milliseconds: 350),
     );
-    _progressAnim = Tween<double>(begin: 0, end: 1 / _totalPages).animate(
-      CurvedAnimation(parent: _progressCtrl, curve: Curves.easeOutCubic),
-    );
-    _progressCtrl.forward();
+    _progressAnim = Tween<double>(
+      begin: 1.0 / _totalPages,
+      end: 1.0 / _totalPages,
+    ).animate(CurvedAnimation(parent: _progressCtrl, curve: Curves.easeOutCubic));
   }
 
   @override
@@ -97,16 +98,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   }
 
   void _animateProgress(int page) {
-    final target = (page + 1) / _totalPages;
+    final nextVal = (page + 1) / _totalPages;
     _progressAnim = Tween<double>(
       begin: _progressAnim.value,
-      end: target,
-    ).animate(
-      CurvedAnimation(parent: _progressCtrl, curve: Curves.easeOutCubic),
-    );
-    _progressCtrl
-      ..reset()
-      ..forward();
+      end: nextVal,
+    ).animate(CurvedAnimation(parent: _progressCtrl, curve: Curves.easeOutCubic));
+    _progressCtrl.forward(from: 0.0);
   }
 
   Future<void> _next() async {
@@ -120,8 +117,25 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
       );
     } else {
       setState(() => _isCompleting = true);
-      await ref.read(onboardingProvider.notifier).saveAndComplete();
-      if (mounted) context.go('/future-self/intro');
+      try {
+        await ref.read(onboardingProvider.notifier).saveAndComplete();
+        await ref.read(profileProvider.notifier).loadProfile();
+        if (mounted) context.go('/future-self/intro');
+      } catch (e) {
+        if (mounted) {
+          setState(() => _isCompleting = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: AppColors.darkSurface,
+              content: Text(
+                'Failed to complete onboarding: $e. Please check your connection and try again.',
+                style: GoogleFonts.inter(color: AppColors.textPrimaryDark),
+              ),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
     }
   }
 

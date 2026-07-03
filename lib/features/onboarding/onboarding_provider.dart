@@ -328,16 +328,14 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
   }
 
   Future<void> saveAndComplete() async {
-    try {
-      final updateData = {
-        'career_slug': state.goal != null ? readingGoalToSlug(state.goal!) : null,
-        'skill_level': state.level != null ? readingLevelToApi(state.level!) : null,
-        'daily_learning_time_min': state.dailyTime != null ? _dailyTimeToMin(state.dailyTime!) : null,
-        'preferred_language': state.language?.label,
-        'onboarding_completed': true,
-      };
-      await apiClient.put('/api/v1/profile/update', body: updateData);
-    } catch (_) {}
+    final updateData = {
+      'career_slug': state.goal != null ? readingGoalToSlug(state.goal!) : null,
+      'skill_level': state.level != null ? readingLevelToApi(state.level!) : null,
+      'daily_learning_time_min': state.dailyTime != null ? _dailyTimeToMin(state.dailyTime!) : null,
+      'preferred_language': state.language?.label,
+      'onboarding_completed': true,
+    };
+    await apiClient.put('/api/v1/profile/update', body: updateData);
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('onboarding_complete', true);
