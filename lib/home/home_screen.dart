@@ -436,19 +436,6 @@ class _QuickAccessBanners extends StatelessWidget {
       child: Column(
         children: [
           _GlowBanner(
-            title: 'Meet Your Future Self',
-            subtitle: 'Talk to the version of you 5 years from now',
-            emoji: '✨',
-            gradientColors: const [Color(0xFF1A1228), Color(0xFF120D1E)],
-            borderColor: AppColors.gold,
-            buttonColor: AppColors.goldGradient,
-            onTap: () {
-              HapticFeedback.mediumImpact();
-              context.push('/future-self/dashboard');
-            },
-          ),
-          const SizedBox(height: 12),
-          _GlowBanner(
             title: 'Life Dashboard',
             subtitle: 'Your life operating system, metrics & reports',
             emoji: '📊',
