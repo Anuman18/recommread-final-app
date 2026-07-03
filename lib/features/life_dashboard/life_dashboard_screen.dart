@@ -214,10 +214,6 @@ class _LifeDashboardScreenState extends ConsumerState<LifeDashboardScreen>
     const MissionCenterCard(),
     const SizedBox(height: 20),
     const _ProjectTracksBanner(),
-    const SizedBox(height: 20),
-    const _CodingPracticeBanner(),
-    const SizedBox(height: 20),
-    const _AiInterviewBanner(),
   ];
 
   List<Widget> _growthTab() => [
@@ -316,60 +312,29 @@ class _LifeDashboardScreenState extends ConsumerState<LifeDashboardScreen>
             ],
           ),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    HapticFeedback.mediumImpact();
-                    context.push('/life-dashboard/revision-center');
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: AppColors.darkElevated,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppColors.darkBorder, width: 0.5),
-                    ),
-                    child: Column(
-                      children: [
-                        const Text('🔄', style: TextStyle(fontSize: 20)),
-                        const SizedBox(height: 8),
-                        Text('Revision Center', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.textPrimaryDark)),
-                        const SizedBox(height: 3),
-                        Text('Recall & mind maps', style: GoogleFonts.inter(fontSize: 9, color: AppColors.textTertiaryDark)),
-                      ],
-                    ),
-                  ),
-                ),
+          GestureDetector(
+            onTap: () {
+              HapticFeedback.mediumImpact();
+              context.push('/life-dashboard/revision-center');
+            },
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.darkElevated,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.darkBorder, width: 0.5),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    HapticFeedback.mediumImpact();
-                    context.push('/life-dashboard/analytics');
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: AppColors.darkElevated,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppColors.darkBorder, width: 0.5),
-                    ),
-                    child: Column(
-                      children: [
-                        const Text('📈', style: TextStyle(fontSize: 20)),
-                        const SizedBox(height: 8),
-                        Text('Analytics', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.textPrimaryDark)),
-                        const SizedBox(height: 3),
-                        Text('Retention index', style: GoogleFonts.inter(fontSize: 9, color: AppColors.textTertiaryDark)),
-                      ],
-                    ),
-                  ),
-                ),
+              child: Column(
+                children: [
+                  const Text('🔄', style: TextStyle(fontSize: 20)),
+                  const SizedBox(height: 8),
+                  Text('Revision Center', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.textPrimaryDark)),
+                  const SizedBox(height: 3),
+                  Text('Recall & mind maps', style: GoogleFonts.inter(fontSize: 9, color: AppColors.textTertiaryDark)),
+                ],
               ),
-            ],
+            ),
           ),
         ],
       ),
