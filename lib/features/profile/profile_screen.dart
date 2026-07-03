@@ -33,7 +33,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
       duration: const Duration(milliseconds: 900),
     );
 
-    _staggerAnims = List.generate(8, (i) {
+    _staggerAnims = List.generate(7, (i) {
       return Tween<double>(begin: 0.0, end: 1.0).animate(
         CurvedAnimation(
           parent: _enterController,
@@ -128,12 +128,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                             _stagger(5, _buildGrowthTimelineSection()),
                             const SizedBox(height: 28),
 
-                            // Future Self Card
-                            _stagger(6, _buildFutureSelfCard()),
-                            const SizedBox(height: 28),
-
                             // Life Dashboard Card
-                            _stagger(7, _buildLifeDashboardCard()),
+                            _stagger(6, _buildLifeDashboardCard()),
                             const SizedBox(height: 100),
                           ]),
                         ),
