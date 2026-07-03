@@ -22,13 +22,12 @@ class ReadingScreen extends ConsumerStatefulWidget {
 }
 
 class _ReadingScreenState extends ConsumerState<ReadingScreen> {
-  late final PageController _pageController;
+  PageController? _pageController;
   Timer? _readingTimer;
 
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(initialPage: 0);
 
     // Reading session timer tracking
     _readingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -41,7 +40,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
   @override
   void dispose() {
     _readingTimer?.cancel();
-    _pageController.dispose();
+    _pageController?.dispose();
     super.dispose();
   }
 
@@ -324,17 +323,6 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
     final settings = session.settings;
     final chapters = kMockBookContents[widget.book.id] ?? kFallbackChapters;
 
-    ref.listen<ReadingSessionState>(
-      readingSessionProvider(widget.book),
-      (previous, next) {
-        if ((previous == null || previous.isProgressLoading) && !next.isProgressLoading) {
-          if (_pageController.hasClients) {
-            _pageController.jumpToPage(next.currentChapterIndex);
-          }
-        }
-      },
-    );
-
     if (session.isProgressLoading) {
       return Scaffold(
         backgroundColor: _getBgColor(settings.themeMode),
@@ -343,6 +331,8 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
         ),
       );
     }
+
+    _pageController ??= PageController(initialPage: session.currentChapterIndex);
 
     return Scaffold(
       backgroundColor: _getBgColor(settings.themeMode),
@@ -364,7 +354,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
               child: chapters.isEmpty
                   ? _buildEmptyState(settings)
                   : PageView.builder(
-                      controller: _pageController,
+                      controller: _pageController!,
                       physics: const BouncingScrollPhysics(),
                       onPageChanged: _onChapterChanged,
                       itemCount: chapters.length,
@@ -415,7 +405,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
                     builder: (context) => ChapterListSheet(
                       book: widget.book,
                       onChapterSelected: (idx) {
-                        _pageController.animateToPage(
+                        _pageController?.animateToPage(
                           idx,
                           duration: const Duration(milliseconds: 400),
                           curve: Curves.easeInOutCubic,
@@ -549,7 +539,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
             icon: Icon(Icons.arrow_back_rounded, color: _getTextColor(settings.themeMode), size: 18),
             onPressed: session.currentChapterIndex > 0
                 ? () {
-                    _pageController.previousPage(
+                    _pageController?.previousPage(
                       duration: const Duration(milliseconds: 300),
                       curve: Curves.easeOut,
                     );
@@ -608,7 +598,7 @@ class _ReadingScreenState extends ConsumerState<ReadingScreen> {
               : IconButton(
                   icon: Icon(Icons.arrow_forward_rounded, color: _getTextColor(settings.themeMode), size: 18),
                   onPressed: () {
-                    _pageController.nextPage(
+                    _pageController?.nextPage(
                       duration: const Duration(milliseconds: 300),
                       curve: Curves.easeOut,
                     );
