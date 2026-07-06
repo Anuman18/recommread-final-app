@@ -102,30 +102,24 @@ NoTransitionPage<T> _noTransition<T>({
   return NoTransitionPage<T>(key: state.pageKey, child: child);
 }
 
-class GoRouterRefreshStream extends ChangeNotifier {
-  late final StreamSubscription<dynamic> _subscription;
-
-  GoRouterRefreshStream(Stream<dynamic> stream) {
-    notifyListeners();
-    _subscription = stream.asBroadcastStream().listen((dynamic _) => notifyListeners());
-  }
-
-  @override
-  void dispose() {
-    _subscription.cancel();
-    super.dispose();
-  }
+class RouterTransitionNotifier extends ChangeNotifier {
+  void notify() => notifyListeners();
 }
 
+final routerListenableProvider = Provider<RouterTransitionNotifier>((ref) {
+  final notifier = RouterTransitionNotifier();
+  ref.listen(authProvider, (_, __) {
+    notifier.notify();
+  });
+  return notifier;
+});
+
 final appRouterProvider = Provider<GoRouter>((ref) {
-  // Watch auth state changes so router stays updated
-  ref.watch(authProvider);
+  final listenable = ref.watch(routerListenableProvider);
 
   return GoRouter(
     initialLocation: '/splash',
-    refreshListenable: GoRouterRefreshStream(
-      ref.watch(authProvider.notifier).stream,
-    ),
+    refreshListenable: listenable,
     redirect: (context, state) {
       final auth = ref.read(authProvider);
 
