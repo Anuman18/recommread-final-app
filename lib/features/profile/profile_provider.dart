@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/services/api_client.dart';
 import '../../core/utils/career_utils.dart';
+import '../auth/auth_provider.dart';
 import '../onboarding/onboarding_provider.dart';
 
 class ProfileState {
@@ -79,7 +80,9 @@ class ProfileState {
 }
 
 class ProfileNotifier extends StateNotifier<ProfileState> {
-  ProfileNotifier()
+  final Ref ref;
+
+  ProfileNotifier(this.ref)
       : super(ProfileState(
           name: '',
           avatarLetter: 'U',
@@ -94,9 +97,16 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
           language: 'English',
           pagesReadThisMonth: 0,
           totalReadingTimeHours: 0,
-          isLoading: true,
+          isLoading: false,
         )) {
-    loadProfile();
+    ref.listen<AuthState>(authProvider, (previous, next) {
+      if (next.isAuthenticated && !(previous?.isAuthenticated ?? false)) {
+        loadProfile();
+      }
+    });
+    if (ref.read(authProvider).isAuthenticated) {
+      loadProfile();
+    }
   }
 
   Future<void> loadProfile() async {
@@ -189,5 +199,5 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
 }
 
 final profileProvider = StateNotifierProvider<ProfileNotifier, ProfileState>((ref) {
-  return ProfileNotifier();
+  return ProfileNotifier(ref);
 });
