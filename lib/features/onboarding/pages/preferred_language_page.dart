@@ -236,13 +236,15 @@ class _LanguageCardState extends State<_LanguageCard>
                   shape: BoxShape.circle,
                 ),
                 clipBehavior: Clip.hardEdge,
-                child: const Center(
-                  child: Icon(
-                    Icons.check_rounded,
-                    size: 15,
-                    color: AppColors.darkBg,
-                  ),
-                ),
+                child: widget.isSelected
+                    ? const Center(
+                        child: Icon(
+                          Icons.check_rounded,
+                          size: 15,
+                          color: AppColors.darkBg,
+                        ),
+                      )
+                    : const SizedBox.shrink(),
               ),
             ],
           ),

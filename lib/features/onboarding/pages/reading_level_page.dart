@@ -271,13 +271,15 @@ class _LevelCardState extends State<_LevelCard>
                   shape: BoxShape.circle,
                 ),
                 clipBehavior: Clip.hardEdge,
-                child: const Center(
-                  child: Icon(
-                    Icons.check_rounded,
-                    size: 15,
-                    color: Colors.white,
-                  ),
-                ),
+                child: widget.isSelected
+                    ? const Center(
+                        child: Icon(
+                          Icons.check_rounded,
+                          size: 15,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const SizedBox.shrink(),
               ),
             ],
           ),

@@ -246,13 +246,15 @@ class _CareerCardState extends State<_CareerCard>
                   shape: BoxShape.circle,
                 ),
                 clipBehavior: Clip.hardEdge,
-                child: const Center(
-                  child: Icon(
-                    Icons.check_rounded,
-                    size: 14,
-                    color: AppColors.darkBg,
-                  ),
-                ),
+                child: widget.isSelected
+                    ? const Center(
+                        child: Icon(
+                          Icons.check_rounded,
+                          size: 14,
+                          color: AppColors.darkBg,
+                        ),
+                      )
+                    : const SizedBox.shrink(),
               ),
               if (widget.isSelected) const SizedBox(width: 4),
             ],
