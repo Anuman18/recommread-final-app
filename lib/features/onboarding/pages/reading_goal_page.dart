@@ -240,7 +240,7 @@ class _CareerCardState extends State<_CareerCard>
                 duration: const Duration(milliseconds: 220),
                 width: widget.isSelected ? 26 : 0,
                 height: 26,
-                curve: Curves.easeOutBack,
+                curve: Curves.easeOut,
                 decoration: BoxDecoration(
                   color: _categoryColor,
                   shape: BoxShape.circle,

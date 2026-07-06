@@ -263,7 +263,7 @@ class _LevelCardState extends State<_LevelCard>
                 duration: const Duration(milliseconds: 220),
                 width: widget.isSelected ? 28 : 0,
                 height: 28,
-                curve: Curves.easeOutBack,
+                curve: Curves.easeOut,
                 decoration: BoxDecoration(
                   gradient: widget.isSelected
                       ? LinearGradient(colors: _gradient)
