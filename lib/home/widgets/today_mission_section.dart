@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
 import '../home_provider.dart';
+import '../../features/library/library_provider.dart' as lib;
 
 class TodayMissionSection extends ConsumerWidget {
   const TodayMissionSection({super.key, required this.missions});
@@ -63,15 +65,15 @@ class TodayMissionSection extends ConsumerWidget {
 
 // ── Hero Mission Card ─────────────────────────────────────────────────────────
 
-class _HeroMissionCard extends StatefulWidget {
+class _HeroMissionCard extends ConsumerStatefulWidget {
   const _HeroMissionCard({required this.mission});
   final DailyMission mission;
 
   @override
-  State<_HeroMissionCard> createState() => _HeroMissionCardState();
+  ConsumerState<_HeroMissionCard> createState() => _HeroMissionCardState();
 }
 
-class _HeroMissionCardState extends State<_HeroMissionCard>
+class _HeroMissionCardState extends ConsumerState<_HeroMissionCard>
     with TickerProviderStateMixin {
   late final AnimationController _progressCtrl;
   late final Animation<double> _progressAnim;
@@ -265,7 +267,30 @@ class _HeroMissionCardState extends State<_HeroMissionCard>
                   const SizedBox(width: 16),
                   // Start / Resume button
                   GestureDetector(
-                    onTap: () => HapticFeedback.mediumImpact(),
+                    onTap: () {
+                      HapticFeedback.mediumImpact();
+                      final library = ref.read(lib.libraryProvider);
+                      lib.LearningResource? resource;
+                      for (final res in library.resources) {
+                        if (res.id == widget.mission.id || res.title.toLowerCase() == widget.mission.title.toLowerCase()) {
+                          resource = res;
+                          break;
+                        }
+                      }
+                      resource ??= lib.LearningResource(
+                        id: widget.mission.id.isNotEmpty ? widget.mission.id : 'fallback',
+                        title: widget.mission.title,
+                        provider: 'AI OS',
+                        type: 'Documentation',
+                        difficulty: widget.mission.difficulty,
+                        timeMin: widget.mission.timeMin,
+                        xpReward: widget.mission.xpReward,
+                        coinsReward: widget.mission.coinsReward,
+                        skills: const [],
+                        url: 'https://github.com',
+                      );
+                      GoRouter.of(context).push('/book/${resource.id}', extra: resource);
+                    },
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                       decoration: BoxDecoration(
@@ -301,15 +326,15 @@ class _HeroMissionCardState extends State<_HeroMissionCard>
 
 // ── Secondary Mission Card ────────────────────────────────────────────────────
 
-class _SecondaryMissionCard extends StatefulWidget {
+class _SecondaryMissionCard extends ConsumerStatefulWidget {
   const _SecondaryMissionCard({required this.mission});
   final DailyMission mission;
 
   @override
-  State<_SecondaryMissionCard> createState() => _SecondaryMissionCardState();
+  ConsumerState<_SecondaryMissionCard> createState() => _SecondaryMissionCardState();
 }
 
-class _SecondaryMissionCardState extends State<_SecondaryMissionCard>
+class _SecondaryMissionCardState extends ConsumerState<_SecondaryMissionCard>
     with SingleTickerProviderStateMixin {
   late final AnimationController _progressCtrl;
   late final Animation<double> _progressAnim;
@@ -348,7 +373,30 @@ class _SecondaryMissionCardState extends State<_SecondaryMissionCard>
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => HapticFeedback.lightImpact(),
+      onTap: () {
+        HapticFeedback.lightImpact();
+        final library = ref.read(lib.libraryProvider);
+        lib.LearningResource? resource;
+        for (final res in library.resources) {
+          if (res.id == widget.mission.id || res.title.toLowerCase() == widget.mission.title.toLowerCase()) {
+            resource = res;
+            break;
+          }
+        }
+        resource ??= lib.LearningResource(
+          id: widget.mission.id.isNotEmpty ? widget.mission.id : 'fallback',
+          title: widget.mission.title,
+          provider: 'AI OS',
+          type: 'Documentation',
+          difficulty: widget.mission.difficulty,
+          timeMin: widget.mission.timeMin,
+          xpReward: widget.mission.xpReward,
+          coinsReward: widget.mission.coinsReward,
+          skills: const [],
+          url: 'https://github.com',
+        );
+        GoRouter.of(context).push('/book/${resource.id}', extra: resource);
+      },
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(

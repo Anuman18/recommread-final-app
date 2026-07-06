@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
 import '../../features/profile/profile_provider.dart';
@@ -295,6 +297,10 @@ class _AnimatedAvatarState extends State<_AnimatedAvatar>
       onTapDown: (_) => _ctrl.reverse(),
       onTapUp: (_) => _ctrl.forward(),
       onTapCancel: () => _ctrl.forward(),
+      onTap: () {
+        HapticFeedback.lightImpact();
+        GoRouter.of(context).go('/profile');
+      },
       child: ScaleTransition(
         scale: _scale,
         child: Stack(
