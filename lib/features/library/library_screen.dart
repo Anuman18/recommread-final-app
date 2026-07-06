@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:share_plus/share_plus.dart';
+import '../../core/router/app_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_colors.dart';
 import '../onboarding/onboarding_provider.dart';
@@ -392,7 +392,7 @@ class _ResourceCard extends ConsumerWidget {
     return GestureDetector(
       onTap: () {
         HapticFeedback.lightImpact();
-        context.push('/book/${resource.id}', extra: resource);
+        SafeNav.push(context, '/book/${resource.id}', extra: resource);
       },
       child: Container(
         padding: const EdgeInsets.all(16),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../core/router/app_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../home_provider.dart';
 
@@ -175,7 +175,7 @@ class _AiRecCard extends StatelessWidget {
                   GestureDetector(
                     onTap: () {
                       HapticFeedback.lightImpact();
-                      GoRouter.of(context).go('/ai-coach');
+                      SafeNav.go(context, '/ai-coach');
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),

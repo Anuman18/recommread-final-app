@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../core/router/app_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../home_provider.dart';
 import '../../features/library/library_provider.dart' as lib;
@@ -289,7 +289,7 @@ class _HeroMissionCardState extends ConsumerState<_HeroMissionCard>
                         skills: const [],
                         url: 'https://github.com',
                       );
-                      GoRouter.of(context).push('/book/${resource.id}', extra: resource);
+                      SafeNav.push(context, '/book/${resource.id}', extra: resource);
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
@@ -395,7 +395,7 @@ class _SecondaryMissionCardState extends ConsumerState<_SecondaryMissionCard>
           skills: const [],
           url: 'https://github.com',
         );
-        GoRouter.of(context).push('/book/${resource.id}', extra: resource);
+        SafeNav.push(context, '/book/${resource.id}', extra: resource);
       },
       child: Container(
         padding: const EdgeInsets.all(16),

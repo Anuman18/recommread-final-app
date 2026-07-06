@@ -465,3 +465,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
+
+class SafeNav {
+  static bool _isNavigating = false;
+
+  static void push(BuildContext context, String location, {Object? extra}) {
+    if (_isNavigating) return;
+    _isNavigating = true;
+    GoRouter.of(context).push(location, extra: extra);
+    Future.delayed(const Duration(milliseconds: 500), () => _isNavigating = false);
+  }
+
+  static void go(BuildContext context, String location, {Object? extra}) {
+    if (_isNavigating) return;
+    _isNavigating = true;
+    GoRouter.of(context).go(location, extra: extra);
+    Future.delayed(const Duration(milliseconds: 500), () => _isNavigating = false);
+  }
+}

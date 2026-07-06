@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../core/router/app_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../home_provider.dart';
 import '../../features/library/library_provider.dart' as lib;
@@ -225,7 +225,7 @@ class _ResourceCardState extends ConsumerState<_ResourceCard>
           url: widget.resource.url,
           isBookmarked: widget.resource.isBookmarked,
         );
-        GoRouter.of(context).push('/book/${widget.resource.id}', extra: libRes);
+        SafeNav.push(context, '/book/${widget.resource.id}', extra: libRes);
       },
       child: ScaleTransition(
         scale: _pressCtrl,
